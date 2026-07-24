@@ -1,5 +1,5 @@
 import { Plus, MessageSquare, Settings, Trash2, FolderOpen, UploadCloud, FileText, Loader2 } from 'lucide-react';
-import { CSSProperties, useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Chat, GlassSettings } from '../types';
 import GlassSurface from './GlassSurface';
@@ -16,7 +16,7 @@ interface SidebarProps {
   setIsSettingsOpen: (open: boolean) => void;
 }
 
-export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentChatId, setCurrentChatId, glassSettings, setGlassSettings, setIsSettingsOpen }: SidebarProps) {
+export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentChatId, setCurrentChatId, glassSettings, setIsSettingsOpen }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<'chats'|'knowledge'>('chats');
   const [documents, setDocuments] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -78,7 +78,7 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
   };
 
   const springPhysics = {
-    type: 'spring',
+    type: 'spring' as const,
     stiffness: 380,
     damping: 26,
     mass: 0.9
@@ -125,7 +125,7 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
         drag="x"
         dragConstraints={{ left: -300, right: 0 }}
         dragElastic={0.1}
-        onDragEnd={(e, { offset, velocity }) => {
+        onDragEnd={(_e, { offset, velocity }) => {
           if (offset.x < -100 || velocity.x < -500) {
             setIsOpen(false);
           } else {
