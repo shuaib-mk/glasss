@@ -23,7 +23,7 @@
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   display: flex;
 }
@@ -108,4 +108,11 @@ button:active {
 }
 
 .mobile-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
-@media (min-width: 768px) { .mobile-overlay { display: none; } }
+@media (min-width: 768px) { 
+  .mobile-overlay { display: none; }
+  .chat-container { padding-left: 300px !important; }
+}
+
+input, textarea {
+  font-size: 16px !important; /* Prevents iOS auto-zoom */
+}

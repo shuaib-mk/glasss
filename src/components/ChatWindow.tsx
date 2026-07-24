@@ -168,14 +168,13 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
   };
 
   return (
-    <main style={{ 
+    <main className="chat-container" style={{ 
       flex: 1, 
       display: 'flex', 
       flexDirection: 'column', 
-      marginLeft: 'auto', 
-      marginRight: 'auto',
       width: '100%',
-      position: 'relative'
+      position: 'relative',
+      transition: 'padding-left 0.3s ease'
     }}>
       
       {/* Top Left Hamburger Button */}
@@ -224,10 +223,10 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 1.5rem 120px 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ width: '100%', maxWidth: '720px', display: 'flex', flexDirection: 'column', gap: '2rem', marginTop: messages.length === 0 ? 'auto' : '2rem', marginBottom: messages.length === 0 ? 'auto' : '0' }}>
+        <div style={{ width: '100%', maxWidth: '768px', display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: messages.length === 0 ? 'auto' : '5rem', marginBottom: messages.length === 0 ? 'auto' : '0' }}>
           
           {messages.length === 0 ? (
-            <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>
+            <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'var(--text-secondary)', padding: '1rem' }}>
               <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--accent-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem', opacity: 0.9 }}>
                 <Sparkles size={32} color="white" />
               </div>
@@ -253,19 +252,19 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         </div>
       </div>
 
-      <div style={{ 
+      <div className="input-container-wrapper" style={{ 
         position: 'absolute', 
         bottom: 0, 
         left: 0, 
         right: 0, 
-        padding: '1.5rem',
+        padding: '0.75rem 1rem 1rem 1rem',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '0.75rem',
-        pointerEvents: 'none' /* let clicks pass through to messages if needed, except on form */
+        background: 'linear-gradient(180deg, transparent, var(--bg-primary) 30%)',
+        pointerEvents: 'none'
       }}>
-        <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '720px', pointerEvents: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '768px', pointerEvents: 'auto', display: 'flex', flexDirection: 'column' }}>
           {scannedImage && (
             <div style={{ position: 'relative', width: 'fit-content', marginBottom: '0.75rem', alignSelf: 'flex-start', marginLeft: '1.5rem' }}>
               <img src={scannedImage} alt="Scanned" style={{ height: '64px', borderRadius: '8px', border: '1px solid var(--glass-border)' }} />
@@ -434,6 +433,11 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           border-right: 4px solid var(--accent-color);
           border-radius: 8px;
           margin: 1rem 0;
+        }
+        @media (max-width: 767px) {
+          .chat-container { padding-left: 0 !important; }
+          .input-container-wrapper { padding: 0.5rem 0.5rem 0.5rem 0.5rem !important; }
+          .message-bubble { padding: 0.75rem !important; font-size: 0.95rem; }
         }
       `}</style>
     </main>
