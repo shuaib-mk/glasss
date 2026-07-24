@@ -24,7 +24,7 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
 
   const fetchDocuments = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/documents');
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/documents`);
       const data = await res.json();
       setDocuments(data);
     } catch (e) {
@@ -47,7 +47,7 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
 
     setIsUploading(true);
     try {
-      await fetch('http://localhost:3001/api/documents', {
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/documents`, {
         method: 'POST',
         body: formData
       });

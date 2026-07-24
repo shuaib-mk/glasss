@@ -80,7 +80,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
     ));
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: payloadMessages, model: aiModel })
