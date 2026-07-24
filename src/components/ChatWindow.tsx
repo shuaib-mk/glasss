@@ -222,7 +222,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 1.5rem 120px 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ width: '100%', maxWidth: '768px', display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: messages.length === 0 ? 'auto' : '5rem', marginBottom: messages.length === 0 ? 'auto' : '0' }}>
           
           {messages.length === 0 ? (
@@ -253,18 +253,16 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
       </div>
 
       <div className="input-container-wrapper" style={{ 
-        position: 'absolute', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
+        width: '100%',
         padding: '0.75rem 1rem 1rem 1rem',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        background: 'linear-gradient(180deg, transparent, var(--bg-primary) 30%)',
-        pointerEvents: 'none'
+        background: 'var(--bg-primary)',
+        borderTop: '1px solid var(--glass-border)',
+        zIndex: 10
       }}>
-        <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '768px', pointerEvents: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '768px', display: 'flex', flexDirection: 'column' }}>
           {scannedImage && (
             <div style={{ position: 'relative', width: 'fit-content', marginBottom: '0.75rem', alignSelf: 'flex-start', marginLeft: '1.5rem' }}>
               <img src={scannedImage} alt="Scanned" style={{ height: '64px', borderRadius: '8px', border: '1px solid var(--glass-border)' }} />
