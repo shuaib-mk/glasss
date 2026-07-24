@@ -4,7 +4,7 @@ import ChatWindow from './components/ChatWindow';
 import SettingsPage from './components/SettingsPage';
 import Noise from './components/Noise';
 import './index.css';
-import type { Chat, GlassSettings } from './types';
+import { AVAILABLE_MODELS, type Chat, type GlassSettings } from './types';
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -41,7 +41,10 @@ function App() {
   }, [chats]);
 
   const [aiModel, setAiModel] = useState(() => {
-    return localStorage.getItem('islamic-chatbot-model') || 'llama-3.1-8b-instant';
+    const saved = localStorage.getItem('islamic-chatbot-model');
+    // Ensure the saved model is one of the available models, otherwise fallback
+    const isValid = AVAILABLE_MODELS.some(m => m.id === saved);
+    return isValid && saved ? saved : 'llama-3.1-8b-instant';
   });
 
   useEffect(() => {
