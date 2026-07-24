@@ -258,8 +258,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        background: 'var(--bg-primary)',
-        borderTop: '1px solid var(--glass-border)',
+        background: 'transparent',
         zIndex: 10
       }}>
         <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '768px', display: 'flex', flexDirection: 'column' }}>
