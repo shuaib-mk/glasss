@@ -173,11 +173,25 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
   const messages = currentChat ? currentChat.messages : [];
   const selectedModelObj = AVAILABLE_MODELS.find(m => m.id === aiModel) || AVAILABLE_MODELS[0] || { name: 'Qwen 3.6 27B', id: 'qwen/qwen3.6-27b', limit: 'High Accuracy' };
 
-  // ChatGPT exact scroll behavior:
-  // 1. One single scrollable container for the entire chat.
-  // 2. When AI starts replying (new prompt submitted) → Scroll ONCE to stay at the TOP of the AI's response.
-  // 3. During streaming & when AI finishes → Stay anchored at the TOP of the AI's response so user can read from the beginning.
-  // 4. User can manually scroll down to read more, or scroll up to read previous conversation.
+  // Explicit function to smoothly scroll to top of new user prompt & AI reply below the fixed top header
+  const scrollToTopOfNewMessage = () => {
+    if (!latestUserMsgRef.current || !scrollContainerRef.current) return;
+    const container = scrollContainerRef.current;
+    const target = latestUserMsgRef.current;
+
+    // Account for top fixed header offset (~68px gap) so user prompt is 100% visible
+    const headerOffset = 68;
+    const elementPosition = target.getBoundingClientRect().top;
+    const containerPosition = container.getBoundingClientRect().top;
+    const offsetPosition = elementPosition - containerPosition + container.scrollTop - headerOffset;
+
+    container.scrollTo({
+      top: Math.max(0, offsetPosition),
+      behavior: 'smooth'
+    });
+  };
+
+  // Call scrollToTopOfNewMessage when AI starts streaming (new prompt pair added)
   useEffect(() => {
     const currentCount = messages.length;
     const prevCount = prevMessageCountRef.current;
@@ -185,10 +199,8 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
 
     if (currentCount > prevCount && currentCount > 0) {
       setTimeout(() => {
-        if (latestUserMsgRef.current) {
-          latestUserMsgRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 50);
+        scrollToTopOfNewMessage();
+      }, 40);
     }
   }, [messages.length]);
 
@@ -257,6 +269,8 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         ? { ...c, messages: [...c.messages, { id: aiMessageId, role: 'ai', text: '', citations: [] }], updatedAt: Date.now() }
         : c
     ));
+
+    setTimeout(() => scrollToTopOfNewMessage(), 50);
 
     const startTime = Date.now();
     let accumulatedResponse = '';
@@ -559,14 +573,29 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           ) : (
             /* Messages List */
             <>
-              {messages.map((msg, idx) => {
-                const isLatestUserMessage = idx === messages.length - 2 && msg.role === 'user';
-                return (
-                  <div key={msg.id} ref={isLatestUserMessage ? latestUserMsgRef : undefined} style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
-                    <MessageBubble msg={msg} setViewingDocument={setViewingDocument} />
-                  </div>
-                );
-              })}
+              {(() => {
+                let lastUserIdx = -1;
+                for (let i = messages.length - 1; i >= 0; i--) {
+                  if (messages[i].role === 'user') {
+                    lastUserIdx = i;
+                    break;
+                  }
+                }
+
+                return messages.map((msg, idx) => {
+                  const isLatestUserMessage = idx === lastUserIdx;
+                  return (
+                    <div 
+                      key={msg.id} 
+                      ref={isLatestUserMessage ? latestUserMsgRef : undefined}
+                      className="message-wrapper"
+                      style={{ width: '100%', maxWidth: '100%', overflow: 'visible' }}
+                    >
+                      <MessageBubble msg={msg} setViewingDocument={setViewingDocument} />
+                    </div>
+                  );
+                });
+              })()}
               {isLoading && messages[messages.length - 1]?.role === 'user' && (
                 <div className="animate-pulse" style={{ color: 'var(--text-muted)', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.5rem', paddingLeft: '0.5rem' }}>
                   <div style={{ width: '14px', height: '14px', border: '2px solid var(--accent-color)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
@@ -820,14 +849,14 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
   );
 
   return (
-    <div className="animate-in" style={{ display: 'flex', justifyContent: isAi ? 'flex-start' : 'flex-end', width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
+    <div className="animate-in message-bubble-container" style={{ display: 'flex', justifyContent: isAi ? 'flex-start' : 'flex-end', width: '100%', maxWidth: '100%', overflow: 'visible' }}>
       <div style={{ 
         display: 'flex',
         gap: '0.75rem',
         maxWidth: isAi ? '100%' : '85%',
         width: isAi ? '100%' : 'auto',
         alignItems: 'flex-start',
-        overflowX: 'hidden',
+        overflow: 'visible',
         wordBreak: 'break-word',
         overflowWrap: 'anywhere'
       }}>
@@ -856,7 +885,7 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
           lineHeight: 1.7,
           fontSize: '0.96rem',
           maxWidth: '100%',
-          overflowX: 'hidden',
+          overflow: 'visible',
           wordBreak: 'break-word',
           overflowWrap: 'anywhere'
         }}>

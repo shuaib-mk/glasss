@@ -50,6 +50,12 @@ p, span, div, pre, code, a {
   word-break: break-word;
 }
 
+/* Ensure zero inner scrollbars on messages */
+.message-wrapper, .message-bubble, .glass-card, .chat-message-content {
+  overflow: visible !important;
+  max-height: none !important;
+}
+
 /* Editorial Title Typography (Claude Style) */
 .serif-title {
   font-family: 'Instrument Serif', Georgia, serif;
