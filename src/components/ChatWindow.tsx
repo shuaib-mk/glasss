@@ -173,9 +173,11 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
   const messages = currentChat ? currentChat.messages : [];
   const selectedModelObj = AVAILABLE_MODELS.find(m => m.id === aiModel) || AVAILABLE_MODELS[0] || { name: 'Qwen 3.6 27B', id: 'qwen/qwen3.6-27b', limit: 'High Accuracy' };
 
-  // ChatGPT / Claude style smart auto-scroll logic:
-  // 1. When a user submits a prompt, scroll once to bring the user's prompt / top of AI response into view.
-  // 2. During streaming, DO NOT pull the user down if they are reading at the top of the reply.
+  // ChatGPT exact scroll behavior:
+  // 1. One single scrollable container for the entire chat.
+  // 2. When AI starts replying (new prompt submitted) → Scroll ONCE to stay at the TOP of the AI's response.
+  // 3. During streaming & when AI finishes → Stay anchored at the TOP of the AI's response so user can read from the beginning.
+  // 4. User can manually scroll down to read more, or scroll up to read previous conversation.
   useEffect(() => {
     const currentCount = messages.length;
     const prevCount = prevMessageCountRef.current;
@@ -185,21 +187,10 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
       setTimeout(() => {
         if (latestUserMsgRef.current) {
           latestUserMsgRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else if (endRef.current) {
-          endRef.current.scrollIntoView({ behavior: 'smooth' });
         }
-      }, 60);
-    } else if (currentCount > 0 && isLoading) {
-      // If streaming and user is already near bottom (within 120px), keep scrolling to bottom smoothly
-      const container = scrollContainerRef.current;
-      if (container) {
-        const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 140;
-        if (isAtBottom && endRef.current) {
-          endRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-      }
+      }, 50);
     }
-  }, [messages, isLoading]);
+  }, [messages.length]);
 
   useEffect(() => {
     // Only auto-focus on desktop devices to prevent mobile virtual keyboard popups
