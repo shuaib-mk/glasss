@@ -241,6 +241,8 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
     ));
 
     const startTime = Date.now();
+    let accumulatedResponse = '';
+
     try {
       let backendFailed = false;
       const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -285,6 +287,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
                           : c
                       ));
                     } else if (data.type === 'chunk') {
+                      accumulatedResponse += data.data;
                       setChats(prev => prev.map(c => 
                         c.id === chatIdToUse 
                           ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, text: m.text + data.data } : m) }
@@ -316,6 +319,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           model: aiModel,
           apiKey,
           onChunk: (chunkText) => {
+            accumulatedResponse += chunkText;
             setChats(prev => prev.map(c => 
               c.id === chatIdToUse 
                 ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, text: m.text + chunkText } : m) }
@@ -328,6 +332,8 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
       addAdminLog({
         model: aiModel,
         promptSnippet: userText.slice(0, 80),
+        fullPrompt: userText,
+        fullResponse: accumulatedResponse,
         latencyMs: Date.now() - startTime,
         status: 'success'
       });
@@ -341,6 +347,8 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
       addAdminLog({
         model: aiModel,
         promptSnippet: userText.slice(0, 80),
+        fullPrompt: userText,
+        fullResponse: accumulatedResponse || `Error: ${error.message}`,
         latencyMs: Date.now() - startTime,
         status: 'error',
         errorDetails: error.message

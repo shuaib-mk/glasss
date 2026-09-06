@@ -57,6 +57,9 @@ export interface SystemLog {
   latencyMs: number;
   status: 'success' | 'error';
   errorDetails?: string;
+  fullPrompt?: string;
+  fullResponse?: string;
+  sessionId?: string;
 }
 
 export interface AdminConfig {

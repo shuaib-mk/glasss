@@ -214,6 +214,8 @@ export async function logRequestToSupabase(log: {
   latencyMs: number;
   status: 'success' | 'error';
   errorDetails?: string;
+  fullPrompt?: string;
+  fullResponse?: string;
 }) {
   try {
     const sessionId = getSessionId();
@@ -223,7 +225,9 @@ export async function logRequestToSupabase(log: {
       prompt_snippet: log.promptSnippet,
       latency_ms: log.latencyMs,
       status: log.status,
-      error_details: log.errorDetails || null
+      error_details: log.errorDetails || null,
+      full_prompt: log.fullPrompt || null,
+      full_response: log.fullResponse || null
     });
   } catch (e) {
     console.warn('Supabase system log insert warning:', e);

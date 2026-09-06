@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Key, Cpu, FileText, Database, Activity, RefreshCw, Trash2, CheckCircle2, AlertCircle, X, Lock, Unlock, Server } from 'lucide-react';
+import { Shield, Key, Cpu, FileText, Database, Activity, RefreshCw, Trash2, CheckCircle2, AlertCircle, X, Lock, Unlock, Server, Eye } from 'lucide-react';
 import { AVAILABLE_MODELS, type GlassSettings, type SystemLog, type AdminConfig } from '../types';
 import GlassSurface from './GlassSurface';
 import { supabase, clearAllChatsFromSupabase, logRequestToSupabase, fetchSystemLogsFromSupabase, clearSystemLogsFromSupabase } from '../supabase';
@@ -58,6 +58,7 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
   const [activeTab, setActiveTab] = useState<'overview' | 'api' | 'prompt' | 'logs' | 'database'>('overview');
   
   const [logs, setLogs] = useState<SystemLog[]>([]);
+  const [selectedLog, setSelectedLog] = useState<SystemLog | null>(null);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; chatCount: number; messageCount: number }>({
     connected: false,
     chatCount: 0,
@@ -94,28 +95,48 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
   }, [isAuthenticated]);
 
   const loadLogs = async () => {
+    let combinedLogs: SystemLog[] = [];
+
+    // 1. Fetch live telemetry from Supabase system_logs table
     try {
       const dbLogs = await fetchSystemLogsFromSupabase();
       if (dbLogs && dbLogs.length > 0) {
         const formatted: SystemLog[] = dbLogs.map(l => ({
-          id: l.id,
-          timestamp: new Date(l.created_at).getTime(),
-          model: l.model,
-          promptSnippet: l.prompt_snippet,
-          latencyMs: l.latency_ms,
-          status: l.status,
-          errorDetails: l.error_details || undefined
+          id: String(l.id),
+          timestamp: new Date(l.created_at || Date.now()).getTime(),
+          model: l.model || 'Unknown',
+          promptSnippet: l.prompt_snippet || l.full_prompt?.slice(0, 80) || 'N/A',
+          latencyMs: l.latency_ms || 0,
+          status: l.status || 'success',
+          errorDetails: l.error_details || undefined,
+          fullPrompt: l.full_prompt || undefined,
+          fullResponse: l.full_response || undefined,
+          sessionId: l.session_id || undefined
         }));
-        setLogs(formatted);
-        return;
+        combinedLogs = formatted;
       }
     } catch (e) {}
 
-    // Fallback to local logs
+    // 2. Fetch local storage telemetry fallback & merge unique entries
     try {
       const saved = localStorage.getItem('sunni-admin-logs');
-      if (saved) setLogs(JSON.parse(saved));
+      if (saved) {
+        const localLogs: SystemLog[] = JSON.parse(saved);
+        if (combinedLogs.length === 0) {
+          combinedLogs = localLogs;
+        } else {
+          const existingIds = new Set(combinedLogs.map(l => l.id));
+          for (const localLog of localLogs) {
+            if (!existingIds.has(localLog.id)) {
+              combinedLogs.push(localLog);
+            }
+          }
+          combinedLogs.sort((a, b) => b.timestamp - a.timestamp);
+        }
+      }
     } catch (e) {}
+
+    setLogs(combinedLogs.slice(0, 100));
   };
 
   const fetchDbStats = async () => {
@@ -506,9 +527,14 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
         {activeTab === 'logs' && (
           <div className="glass-panel" style={{ padding: '2rem', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Cpu size={20} color="var(--accent-color)" /> Live System Request Telemetry
-              </h3>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Cpu size={20} color="var(--accent-color)" /> Live Global Telemetry & AI Inspection Logs
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '0.2rem 0 0 0' }}>
+                  Auto-syncing every 3 seconds. Click any row to inspect complete prompt and AI response text.
+                </p>
+              </div>
 
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button onClick={loadLogs} style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem 0.85rem', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
@@ -522,31 +548,43 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
 
             {logs.length === 0 ? (
               <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                No request logs recorded yet. Send a message to start logging telemetry.
+                No request logs recorded yet. Send a prompt on Sunni AI to watch live telemetry populate!
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-muted)' }}>
-                      <th style={{ padding: '0.75rem 1rem' }}>Timestamp</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Time</th>
                       <th style={{ padding: '0.75rem 1rem' }}>Model</th>
-                      <th style={{ padding: '0.75rem 1rem' }}>Prompt Snippet</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>User Prompt</th>
                       <th style={{ padding: '0.75rem 1rem' }}>Latency</th>
                       <th style={{ padding: '0.75rem 1rem' }}>Status</th>
+                      <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {logs.map(log => (
-                      <tr key={log.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: 'var(--text-primary)' }}>
+                      <tr 
+                        key={log.id} 
+                        onClick={() => setSelectedLog(log)}
+                        style={{ 
+                          borderBottom: '1px solid rgba(255, 255, 255, 0.05)', 
+                          color: 'var(--text-primary)',
+                          cursor: 'pointer',
+                          transition: 'background 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
                         <td style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
                           {new Date(log.timestamp).toLocaleTimeString()}
                         </td>
                         <td style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>{log.model}</td>
-                        <td style={{ padding: '0.75rem 1rem', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {log.promptSnippet}
+                        <td style={{ padding: '0.75rem 1rem', maxWidth: '320px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {log.fullPrompt || log.promptSnippet}
                         </td>
-                        <td style={{ padding: '0.75rem 1rem', color: log.latencyMs < 1000 ? '#4ade80' : '#f59e0b' }}>
+                        <td style={{ padding: '0.75rem 1rem', color: log.latencyMs < 1000 ? '#4ade80' : '#f59e0b', fontWeight: 600 }}>
                           {log.latencyMs}ms
                         </td>
                         <td style={{ padding: '0.75rem 1rem' }}>
@@ -558,12 +596,133 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
                             {log.status}
                           </span>
                         </td>
+                        <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedLog(log);
+                            }}
+                            style={{
+                              background: 'var(--accent-soft)', border: '1px solid rgba(218, 119, 86, 0.3)',
+                              borderRadius: '8px', padding: '0.35rem 0.65rem', color: 'var(--accent-color)',
+                              fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex',
+                              alignItems: 'center', gap: '0.3rem'
+                            }}
+                          >
+                            <Eye size={13} /> Inspect
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* LOG INSPECTION MODAL */}
+        {selectedLog && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 120,
+            background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '1rem'
+          }}>
+            <div className="glass-panel animate-in" style={{
+              width: '100%', maxWidth: '720px', maxHeight: '85vh',
+              borderRadius: '24px', display: 'flex', flexDirection: 'column',
+              background: '#141311', border: '1px solid var(--glass-border)',
+              overflow: 'hidden'
+            }}>
+              {/* Header */}
+              <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Eye size={18} color="var(--accent-color)" /> AI Prompt & Response Inspector
+                  </h3>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    ID: {selectedLog.id} • {new Date(selectedLog.timestamp).toLocaleString()}
+                  </span>
+                </div>
+                <button onClick={() => setSelectedLog(null)} style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '10px', padding: '0.4rem', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Content Details */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                
+                {/* Meta Badges */}
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Model: <strong style={{ color: 'var(--text-primary)' }}>{selectedLog.model}</strong>
+                  </div>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.8rem', color: selectedLog.latencyMs < 1000 ? '#4ade80' : '#f59e0b' }}>
+                    Latency: <strong>{selectedLog.latencyMs}ms</strong>
+                  </div>
+                  <div style={{ background: selectedLog.status === 'success' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.8rem', color: selectedLog.status === 'success' ? '#4ade80' : '#ef4444', fontWeight: 600 }}>
+                    Status: {selectedLog.status.toUpperCase()}
+                  </div>
+                  {selectedLog.sessionId && (
+                    <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      Session: <span style={{ fontFamily: 'monospace' }}>{selectedLog.sessionId.slice(0, 16)}...</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* User Prompt */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
+                    Full User Prompt:
+                  </label>
+                  <div style={{
+                    background: 'rgba(20, 19, 17, 0.9)', border: '1px solid var(--glass-border)',
+                    borderRadius: '12px', padding: '1rem', color: 'var(--text-primary)',
+                    fontSize: '0.9rem', whiteSpace: 'pre-wrap', fontFamily: 'sans-serif',
+                    lineHeight: 1.6, maxHeight: '200px', overflowY: 'auto'
+                  }}>
+                    {selectedLog.fullPrompt || selectedLog.promptSnippet}
+                  </div>
+                </div>
+
+                {/* AI Response */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
+                    Full AI Response:
+                  </label>
+                  <div style={{
+                    background: 'rgba(20, 19, 17, 0.9)', border: '1px solid var(--glass-border)',
+                    borderRadius: '12px', padding: '1rem', color: '#e2e8f0',
+                    fontSize: '0.9rem', whiteSpace: 'pre-wrap', fontFamily: 'sans-serif',
+                    lineHeight: 1.6, maxHeight: '280px', overflowY: 'auto'
+                  }}>
+                    {selectedLog.fullResponse ? (
+                      selectedLog.fullResponse
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        {selectedLog.errorDetails ? `Error: ${selectedLog.errorDetails}` : '[Response recording snippet active]'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={() => setSelectedLog(null)}
+                  style={{
+                    padding: '0.6rem 1.5rem', borderRadius: '10px',
+                    background: 'var(--accent-color)', color: '#ffffff',
+                    border: 'none', fontWeight: 600, fontSize: '0.88rem', cursor: 'pointer'
+                  }}
+                >
+                  Close Inspection
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
