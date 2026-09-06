@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Menu, Send, BookOpen, ExternalLink, Sparkles, Camera, Loader2, ChevronDown, BookMarked, ShieldCheck, Compass, FileSearch, X, Plus } from 'lucide-react';
+import { Menu, Send, BookOpen, ExternalLink, Sparkles, Camera, Loader2, ChevronDown, BookMarked, ShieldCheck, Compass, FileSearch, X, Plus, AlertCircle } from 'lucide-react';
 import Tesseract from 'tesseract.js';
 import type { Chat, MessageData, Citation, GlassSettings } from '../types';
 import { AVAILABLE_MODELS } from '../types';
@@ -166,13 +166,40 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const prevMessageCountRef = useRef<number>(0);
+  const latestUserMsgRef = useRef<HTMLDivElement>(null);
 
   const messages = currentChat ? currentChat.messages : [];
   const selectedModelObj = AVAILABLE_MODELS.find(m => m.id === aiModel) || AVAILABLE_MODELS[0] || { name: 'Qwen 3.6 27B', id: 'qwen/qwen3.6-27b', limit: 'High Accuracy' };
 
+  // ChatGPT / Claude style smart auto-scroll logic:
+  // 1. When a user submits a prompt, scroll once to bring the user's prompt / top of AI response into view.
+  // 2. During streaming, DO NOT pull the user down if they are reading at the top of the reply.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const currentCount = messages.length;
+    const prevCount = prevMessageCountRef.current;
+    prevMessageCountRef.current = currentCount;
+
+    if (currentCount > prevCount && currentCount > 0) {
+      setTimeout(() => {
+        if (latestUserMsgRef.current) {
+          latestUserMsgRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (endRef.current) {
+          endRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 60);
+    } else if (currentCount > 0 && isLoading) {
+      // If streaming and user is already near bottom (within 120px), keep scrolling to bottom smoothly
+      const container = scrollContainerRef.current;
+      if (container) {
+        const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 140;
+        if (isAtBottom && endRef.current) {
+          endRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }
+  }, [messages, isLoading]);
 
   useEffect(() => {
     // Only auto-focus on desktop devices to prevent mobile virtual keyboard popups
@@ -450,15 +477,21 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
       </header>
 
       {/* Main Chat Scroll Container */}
-      <div style={{ 
-        flex: 1, 
-        overflowY: 'auto', 
-        padding: '0 1rem', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center',
-        WebkitOverflowScrolling: 'touch'
-      }}>
+      <div 
+        ref={scrollContainerRef}
+        style={{ 
+          flex: 1, 
+          overflowY: 'auto', 
+          overflowX: 'hidden',
+          padding: '0 1rem', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center',
+          width: '100%',
+          maxWidth: '100vw',
+          WebkitOverflowScrolling: 'touch'
+        }}
+      >
         <div style={{ 
           width: '100%', 
           maxWidth: '768px', 
@@ -467,7 +500,8 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           gap: '1.25rem', 
           margin: 'auto 0',
           paddingTop: '4.5rem', 
-          paddingBottom: messages.length === 0 ? '140px' : '7.5rem'
+          paddingBottom: messages.length === 0 ? '140px' : '7.5rem',
+          overflowX: 'hidden'
         }}>
           
           {messages.length === 0 ? (
@@ -534,9 +568,14 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           ) : (
             /* Messages List */
             <>
-              {messages.map(msg => (
-                <MessageBubble key={msg.id} msg={msg} setViewingDocument={setViewingDocument} />
-              ))}
+              {messages.map((msg, idx) => {
+                const isLatestUserMessage = idx === messages.length - 2 && msg.role === 'user';
+                return (
+                  <div key={msg.id} ref={isLatestUserMessage ? latestUserMsgRef : undefined} style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
+                    <MessageBubble msg={msg} setViewingDocument={setViewingDocument} />
+                  </div>
+                );
+              })}
               {isLoading && messages[messages.length - 1]?.role === 'user' && (
                 <div className="animate-pulse" style={{ color: 'var(--text-muted)', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.5rem', paddingLeft: '0.5rem' }}>
                   <div style={{ width: '14px', height: '14px', border: '2px solid var(--accent-color)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
@@ -780,41 +819,71 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
 function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewingDocument: (doc: string) => void }) {
   const isAi = msg.role === 'ai';
   const displayContent = isAi ? cleanTextContent(msg.text) : msg.text;
-  
+
+  const isErrorMsg = isAi && (
+    displayContent.startsWith('Error:') || 
+    displayContent.startsWith('[Error:') || 
+    displayContent.includes('Rate limit') ||
+    displayContent.includes('Groq API Error') ||
+    displayContent.includes('429')
+  );
+
   return (
-    <div className="animate-in" style={{ display: 'flex', justifyContent: isAi ? 'flex-start' : 'flex-end', width: '100%' }}>
+    <div className="animate-in" style={{ display: 'flex', justifyContent: isAi ? 'flex-start' : 'flex-end', width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
       <div style={{ 
         display: 'flex',
         gap: '0.75rem',
         maxWidth: isAi ? '100%' : '85%',
         width: isAi ? '100%' : 'auto',
-        alignItems: 'flex-start'
+        alignItems: 'flex-start',
+        overflowX: 'hidden',
+        wordBreak: 'break-word',
+        overflowWrap: 'anywhere'
       }}>
         {isAi && (
           <div style={{ 
             width: '30px', height: '30px', borderRadius: '9px', 
-            background: 'var(--accent-soft)', border: '1px solid rgba(218, 119, 86, 0.25)',
+            background: isErrorMsg ? 'rgba(239, 68, 68, 0.15)' : 'var(--accent-soft)',
+            border: isErrorMsg ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(218, 119, 86, 0.25)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '3px'
           }}>
-            <img src="/logo.png" alt="Sunni AI" style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
+            {isErrorMsg ? (
+              <AlertCircle size={16} color="#ef4444" />
+            ) : (
+              <img src="/logo.png" alt="Sunni AI" style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
+            )}
           </div>
         )}
 
         <div style={{ 
           flex: 1,
-          background: isAi ? 'transparent' : 'rgba(40, 36, 33, 0.85)',
-          border: isAi ? 'none' : '1px solid var(--glass-border)',
-          padding: isAi ? 0 : '0.85rem 1.15rem',
-          borderRadius: isAi ? 0 : '18px 4px 18px 18px',
-          color: 'var(--text-primary)',
+          background: isErrorMsg ? 'rgba(239, 68, 68, 0.1)' : (isAi ? 'transparent' : 'rgba(40, 36, 33, 0.85)'),
+          border: isErrorMsg ? '1px solid rgba(239, 68, 68, 0.3)' : (isAi ? 'none' : '1px solid var(--glass-border)'),
+          padding: isErrorMsg ? '0.85rem 1.15rem' : (isAi ? 0 : '0.85rem 1.15rem'),
+          borderRadius: isErrorMsg ? '16px' : (isAi ? 0 : '18px 4px 18px 18px'),
+          color: isErrorMsg ? '#f87171' : 'var(--text-primary)',
           lineHeight: 1.7,
-          fontSize: '0.96rem'
+          fontSize: '0.96rem',
+          maxWidth: '100%',
+          overflowX: 'hidden',
+          wordBreak: 'break-word',
+          overflowWrap: 'anywhere'
         }}>
           {msg.image && (
             <img src={msg.image} alt="Uploaded" style={{ maxWidth: '100%', maxHeight: '240px', borderRadius: '10px', marginBottom: '0.75rem', border: '1px solid var(--glass-border)', objectFit: 'contain' }} />
           )}
-          {isAi ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+
+          {isErrorMsg ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+              <div style={{ fontWeight: 600, color: '#ef4444', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <AlertCircle size={16} /> Rate Limit / Model Service Notice
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#fca5a5', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                {displayContent}
+              </div>
+            </div>
+          ) : isAi ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '100%', overflowX: 'hidden', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
               {displayContent.split('\n').map((paragraph, idx) => {
                 if (!paragraph.trim()) return <br key={idx} />;
                 const cleanPara = paragraph.replace(/[\s\d\p{P}]/gu, '');
@@ -822,7 +891,7 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                 const isArabicVerse = cleanPara.length > 0 && (arabicCount / cleanPara.length) > 0.45;
                 let cleanText = paragraph;
                 if (isArabicVerse && cleanText.startsWith('>')) cleanText = cleanText.replace(/^>\s*/, '');
-                return <p key={idx} className={isArabicVerse ? 'arabic-text' : ''} style={{ marginBottom: '0.4rem' }}>{cleanText}</p>;
+                return <p key={idx} className={isArabicVerse ? 'arabic-text' : ''} style={{ marginBottom: '0.4rem', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{cleanText}</p>;
               })}
               {msg.citations && msg.citations.length > 0 && (
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
@@ -831,7 +900,7 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
               )}
             </div>
           ) : (
-            <div>{msg.text}</div>
+            <div style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{msg.text}</div>
           )}
         </div>
       </div>
