@@ -52,7 +52,7 @@ export default function SettingsPage({ close, glassSettings, setGlassSettings, a
                 }}
               />
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                If left empty, Hikmah AI will use the key configured in server environment variables.
+                If left empty, Sunni AI will use the key configured in server environment variables.
               </p>
             </div>
 
@@ -133,7 +133,7 @@ export default function SettingsPage({ close, glassSettings, setGlassSettings, a
           <div style={{ marginTop: '3rem', padding: '2rem', background: 'var(--bg-primary)', borderRadius: '12px', border: '1px solid var(--glass-border)', position: 'relative', overflow: 'hidden' }}>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', textAlign: 'center' }}>Live Preview</p>
             <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', zIndex: 2, color: 'var(--accent-color)' }}>
-               <h1 style={{ fontSize: '3rem', margin: 0, filter: 'blur(2px)' }}>Hikmah AI</h1>
+               <h1 style={{ fontSize: '3rem', margin: 0, filter: 'blur(2px)' }}>Sunni AI</h1>
             </div>
             <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10, pointerEvents: 'none' }}>
               <GlassSurface 

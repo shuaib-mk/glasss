@@ -154,7 +154,7 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
                 }}>
                   <Sparkles size={14} color="var(--accent-color)" />
                 </div>
-                <span className="serif-title" style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>Hikmah AI</span>
+                <span className="serif-title" style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>Sunni AI</span>
               </div>
               <span style={{ fontSize: '0.7rem', color: 'var(--accent-color)', background: 'var(--accent-soft)', padding: '0.2rem 0.5rem', borderRadius: '99px', fontWeight: 600 }}>
                 v2.0

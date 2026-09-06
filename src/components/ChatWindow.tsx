@@ -65,7 +65,7 @@ async function streamDirectGroqChat({
   const defaultKey = ['gsk_1PWFTdO4iGLVnDYnPO81', 'WGdyb3FYoQNLWm2CSlZAPrXifilAJrAJ'].join('');
   const groqKey = (apiKey || import.meta.env.VITE_GROQ_API_KEY || defaultKey).trim();
 
-  const systemPrompt = `You are Hikmah AI, a fast, intelligent, and respectful Islamic Knowledge Assistant created by q04ti, a developer and student.
+  const systemPrompt = `You are Sunni AI, a fast, intelligent, and respectful Islamic Knowledge Assistant created by q04ti, a developer and student.
 Your goal is to provide instant, accurate, and concise answers regarding Quran, Hadith, Islamic jurisprudence (fiqh), theology (aqeedah), and history.
 
 CREATOR & IDENTITY:
@@ -379,7 +379,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           <GlassSurface width={140} height={38} {...glassSettings} borderRadius={50}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', width: '100%', height: '100%' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-color)', boxShadow: '0 0 6px var(--accent-color)' }} />
-              <span className="serif-title" style={{ fontSize: '1.15rem', color: 'var(--text-primary)' }}>Hikmah AI</span>
+              <span className="serif-title" style={{ fontSize: '1.15rem', color: 'var(--text-primary)' }}>Sunni AI</span>
             </div>
           </GlassSurface>
         </div>
@@ -602,7 +602,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
                     handleSubmit();
                   }
                 }}
-                placeholder={isScanning ? "Scanning image..." : "Ask Hikmah AI anything..."}
+                placeholder={isScanning ? "Scanning image..." : "Ask Sunni AI anything..."}
                 disabled={isLoading || isScanning}
                 style={{
                   width: '100%',

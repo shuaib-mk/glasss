@@ -8,10 +8,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Retrieve or generate a persistent session ID for public users
 export const getSessionId = (): string => {
-  let sessionId = localStorage.getItem('hikmah-session-id');
+  let sessionId = localStorage.getItem('sunni-session-id') || localStorage.getItem('hikmah-session-id');
   if (!sessionId) {
     sessionId = 'session_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
-    localStorage.setItem('hikmah-session-id', sessionId);
+    localStorage.setItem('sunni-session-id', sessionId);
   }
   return sessionId;
 };

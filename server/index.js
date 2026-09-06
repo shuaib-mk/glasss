@@ -159,7 +159,7 @@ app.post('/api/chat', async (req, res) => {
     const userProvidedKey = req.headers['x-groq-api-key'] || req.body.apiKey;
     const groq = getGroqClient(userProvidedKey);
 
-    const systemPrompt = `You are Hikmah AI, a fast, intelligent, and respectful Islamic Knowledge Assistant created by q04ti, a developer and student.
+    const systemPrompt = `You are Sunni AI, a fast, intelligent, and respectful Islamic Knowledge Assistant created by q04ti, a developer and student.
 Your goal is to provide instant, accurate, and concise answers regarding Quran, Hadith, Islamic jurisprudence (fiqh), theology (aqeedah), and history.
 
 CREATOR & IDENTITY:
@@ -214,5 +214,5 @@ CRITICAL LANGUAGE & FORMATTING RULES:
 });
 
 app.listen(PORT, () => {
-  console.log(`Hikmah AI Backend Server running on http://localhost:${PORT}`);
+  console.log(`Sunni AI Backend Server running on http://localhost:${PORT}`);
 });
