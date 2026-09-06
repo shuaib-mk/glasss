@@ -2,15 +2,16 @@ import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatWindow from './components/ChatWindow';
 import SettingsPage from './components/SettingsPage';
+import AdminPanel from './components/AdminPanel';
 import Noise from './components/Noise';
 import './index.css';
 import { AVAILABLE_MODELS, type Chat, type GlassSettings } from './types';
-
 import { fetchChatsFromSupabase, saveChatToSupabase, purgeSessionOnUnload } from './supabase';
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [glassSettings, setGlassSettings] = useState<GlassSettings>({
     saturation: 0,
     opacity: 0.93,
@@ -123,7 +124,20 @@ function App() {
         glassSettings={glassSettings}
         setGlassSettings={setGlassSettings}
         setIsSettingsOpen={setIsSettingsOpen}
+        setIsAdminOpen={setIsAdminOpen}
       />
+
+      {isAdminOpen && (
+        <AdminPanel
+          close={() => setIsAdminOpen(false)}
+          glassSettings={glassSettings}
+          aiModel={aiModel}
+          setAiModel={setAiModel}
+          apiKey={apiKey}
+          setApiKey={setApiKey}
+        />
+      )}
+
       {isSettingsOpen ? (
         <SettingsPage 
           close={() => setIsSettingsOpen(false)}

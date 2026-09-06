@@ -4,6 +4,7 @@ import Tesseract from 'tesseract.js';
 import type { Chat, MessageData, Citation, GlassSettings } from '../types';
 import { AVAILABLE_MODELS } from '../types';
 import GlassSurface from './GlassSurface';
+import { addAdminLog } from './AdminPanel';
 
 interface ChatWindowProps {
   toggleSidebar: () => void;
@@ -214,6 +215,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         : c
     ));
 
+    const startTime = Date.now();
     try {
       let backendFailed = false;
       const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -297,12 +299,27 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           }
         });
       }
+
+      addAdminLog({
+        model: aiModel,
+        promptSnippet: userText.slice(0, 80),
+        latencyMs: Date.now() - startTime,
+        status: 'success'
+      });
     } catch (error: any) {
       setChats(prev => prev.map(c => 
         c.id === chatIdToUse 
           ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, text: `Error: ${error.message}` } : m) }
           : c
       ));
+
+      addAdminLog({
+        model: aiModel,
+        promptSnippet: userText.slice(0, 80),
+        latencyMs: Date.now() - startTime,
+        status: 'error',
+        errorDetails: error.message
+      });
     } finally {
       setIsLoading(false);
     }

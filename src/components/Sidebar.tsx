@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, Settings, Trash2, FolderOpen, UploadCloud, Loader2, BookOpen } from 'lucide-react';
+import { Plus, MessageSquare, Settings, Trash2, FolderOpen, UploadCloud, Loader2, BookOpen, Shield } from 'lucide-react';
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import type { Chat, GlassSettings } from '../types';
 import GlassSurface from './GlassSurface';
@@ -14,6 +14,7 @@ interface SidebarProps {
   glassSettings: GlassSettings;
   setGlassSettings: (s: GlassSettings | ((prev: GlassSettings) => GlassSettings)) => void;
   setIsSettingsOpen: (open: boolean) => void;
+  setIsAdminOpen?: (open: boolean) => void;
 }
 
 // Group chats chronologically like Claude AI
@@ -47,7 +48,7 @@ function groupChatsByDate(chats: Chat[]) {
   ].filter(group => group.items.length > 0);
 }
 
-export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentChatId, setCurrentChatId, glassSettings, setIsSettingsOpen }: SidebarProps) {
+export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentChatId, setCurrentChatId, glassSettings, setIsSettingsOpen, setIsAdminOpen }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<'chats'|'knowledge'>('chats');
   const [documents, setDocuments] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -293,19 +294,34 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
               )}
             </div>
 
-            {/* Bottom Settings Button */}
-            <div style={{ marginTop: 'auto', paddingTop: '0.85rem', borderTop: '1px solid var(--glass-border)' }}>
+            {/* Bottom Settings & Admin Buttons */}
+            <div style={{ marginTop: 'auto', paddingTop: '0.85rem', borderTop: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <button 
                 onClick={() => setIsSettingsOpen(true)}
                 style={{ 
                   display: 'flex', alignItems: 'center', gap: '0.75rem', 
                   color: 'var(--text-secondary)', padding: '0.6rem 0.75rem', 
-                  borderRadius: '10px', background: 'transparent', width: '100%', transition: 'background 0.2s' 
+                  borderRadius: '10px', background: 'transparent', width: '100%', cursor: 'pointer' 
                 }}
               >
                 <Settings size={16} />
-                <span style={{ fontSize: '0.88rem' }}>Settings & API</span>
+                <span style={{ fontSize: '0.88rem' }}>Settings</span>
               </button>
+
+              {setIsAdminOpen && (
+                <button 
+                  onClick={() => setIsAdminOpen(true)}
+                  style={{ 
+                    display: 'flex', alignItems: 'center', gap: '0.75rem', 
+                    color: 'var(--accent-color)', padding: '0.6rem 0.75rem', 
+                    borderRadius: '10px', background: 'var(--accent-soft)', width: '100%', cursor: 'pointer',
+                    fontWeight: 500
+                  }}
+                >
+                  <Shield size={16} />
+                  <span style={{ fontSize: '0.88rem' }}>Admin Hub</span>
+                </button>
+              )}
             </div>
 
           </div>

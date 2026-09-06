@@ -48,3 +48,22 @@ export const AVAILABLE_MODELS: AIModel[] = [
   { id: 'openai/gpt-oss-120b', name: 'GPT OSS 120B', limit: 'Large Capability' },
   { id: 'groq/compound-mini', name: 'Groq Compound Mini', limit: 'Ultra Fast' }
 ];
+
+export interface SystemLog {
+  id: string;
+  timestamp: number;
+  model: string;
+  promptSnippet: string;
+  latencyMs: number;
+  status: 'success' | 'error';
+  errorDetails?: string;
+}
+
+export interface AdminConfig {
+  customApiKey: string;
+  defaultModel: string;
+  temperature: number;
+  maxTokens: number;
+  systemPrompt: string;
+}
+
