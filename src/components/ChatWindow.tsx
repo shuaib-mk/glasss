@@ -5,6 +5,7 @@ import type { Chat, MessageData, Citation, GlassSettings } from '../types';
 import { AVAILABLE_MODELS } from '../types';
 import GlassSurface from './GlassSurface';
 import { addAdminLog } from './AdminPanel';
+import { cleanTextContent } from '../utils/cleanText';
 
 interface ChatWindowProps {
   toggleSidebar: () => void;
@@ -44,14 +45,6 @@ const STARTER_PROMPTS = [
   }
 ];
 
-// Helper to strip <think>...</think> reasoning tags from reasoning models
-function cleanTextContent(text: string): string {
-  return text
-    .replace(/<think>[\s\S]*?<\/think>/gi, '')
-    .replace(/<think>[\s\S]*/gi, '')
-    .trim();
-}
-
 async function streamDirectGroqChat({
   messages,
   model,
@@ -77,6 +70,28 @@ Your goal is to provide instant, accurate, and concise answers regarding Quran, 
 
 CREATOR & IDENTITY:
 - When asked who created, built, or developed you, ALWAYS state clearly that you were created by q04ti, a developer and a student.
+
+CRITICAL FORMATTING MANDATE (STRICT NO MARKDOWN):
+1. OUTPUT PLAIN TEXT ONLY - ABSOLUTELY NO MARKDOWN FORMATTING.
+2. DO NOT USE ASTERISKS (*) FOR BOLD, ITALIC, OR LISTS. NEVER USE ** OR * ANYWHERE IN YOUR OUTPUT.
+3. DO NOT USE UNDERSCORES (_) OR HASH SYMBOLS (#) FOR HEADERS.
+4. DO NOT USE BACKTICKS (\`) FOR CODE BLOCKS.
+5. Use plain text with line breaks only.
+6. Use double quotes " " for Quranic verses, Hadith quotes, or book titles (not asterisks).
+7. Use plain dashes - for bullet points (never asterisks).
+8. Use standard numbers 1. 2. 3. for numbered lists.
+
+Examples:
+❌ WRONG: **"Quran verse"** - Explanation:
+✅ CORRECT: "Quran verse" - Explanation:
+
+❌ WRONG: *Important point*
+✅ CORRECT: Important point
+
+❌ WRONG: # Section Title
+✅ CORRECT: Section Title
+
+REMEMBER: PLAIN TEXT ONLY. ABSOLUTELY ZERO ASTERISKS OR MARKDOWN FORMATTING.
 
 CRITICAL LANGUAGE MANDATE:
 1. The user communicates in ENGLISH. YOU MUST RESPOND EXCLUSIVELY IN ENGLISH.
@@ -115,6 +130,9 @@ CRITICAL LANGUAGE MANDATE:
       messages: groqMessages,
       temperature: adminConfig?.temperature ?? 0.6,
       max_tokens: adminConfig?.maxTokens ?? 750,
+      frequency_penalty: 0.5,
+      presence_penalty: 0.3,
+      stop: ["**", "__", "```"],
       stream: true
     })
   });
