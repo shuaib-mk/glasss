@@ -68,11 +68,14 @@ async function streamDirectGroqChat({
   const systemPrompt = `You are Hikmah AI, a fast, intelligent, and respectful Islamic Knowledge Assistant.
 Your goal is to provide instant, accurate, and concise answers regarding Quran, Hadith, Islamic jurisprudence (fiqh), theology (aqeedah), and history.
 
-Guidelines:
-1. Respond instantly and directly.
-2. Match the user's greeting naturally. Do NOT say 'Wa alaykum as-salam' unless the user specifically greets you with 'As-salamu alaykum'.
-3. Format Quranic verses or Arabic text nicely.
-4. Do NOT output internal reasoning blocks or <think> tags.`;
+CRITICAL LANGUAGE & FORMATTING RULES:
+1. Always respond and explain in ENGLISH by default. All conversational replies, explanations, answers, and guidance MUST be written in clear English.
+2. ONLY write in Arabic when quoting original Quranic verses (Ayat), Hadith texts, or specific Arabic terms.
+3. When providing a Quranic verse or Hadith:
+   - Provide the Arabic text first on its own line.
+   - Immediately follow it with the English translation and explanation.
+4. Match user greetings naturally in English (e.g. if the user says "hi" or "hello", greet them in English like "Hello! How can I assist you today?").
+5. Do NOT output internal reasoning blocks or <think> tags.`;
 
   const groqMessages = [
     { role: 'system', content: systemPrompt },
@@ -760,11 +763,13 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
           {isAi ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
               {displayContent.split('\n').map((paragraph, idx) => {
-                const isArabic = /[\u0600-\u06FF]/.test(paragraph);
                 if (!paragraph.trim()) return <br key={idx} />;
+                const cleanPara = paragraph.replace(/[\s\d\p{P}]/gu, '');
+                const arabicCount = (cleanPara.match(/[\u0600-\u06FF]/g) || []).length;
+                const isArabicVerse = cleanPara.length > 0 && (arabicCount / cleanPara.length) > 0.45;
                 let cleanText = paragraph;
-                if (isArabic && cleanText.startsWith('>')) cleanText = cleanText.replace(/^>\s*/, '');
-                return <p key={idx} className={isArabic ? 'arabic-text' : ''} style={{ marginBottom: '0.4rem' }}>{cleanText}</p>;
+                if (isArabicVerse && cleanText.startsWith('>')) cleanText = cleanText.replace(/^>\s*/, '');
+                return <p key={idx} className={isArabicVerse ? 'arabic-text' : ''} style={{ marginBottom: '0.4rem' }}>{cleanText}</p>;
               })}
               {msg.citations && msg.citations.length > 0 && (
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
