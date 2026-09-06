@@ -6,8 +6,10 @@ import Noise from './components/Noise';
 import './index.css';
 import { AVAILABLE_MODELS, type Chat, type GlassSettings } from './types';
 
+import { fetchChatsFromSupabase, saveChatToSupabase } from './supabase';
+
 function App() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [glassSettings, setGlassSettings] = useState<GlassSettings>({
     saturation: 0,
@@ -34,22 +36,47 @@ function App() {
     }
     return [];
   });
-  const [currentChatId, setCurrentChatId] = useState<string | null>(chats.length > 0 ? chats[0].id : null);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
 
+  // Sync from Supabase on mount
+  useEffect(() => {
+    async function loadSupabaseData() {
+      const dbChats = await fetchChatsFromSupabase();
+      if (dbChats && dbChats.length > 0) {
+        setChats(dbChats);
+      }
+    }
+    loadSupabaseData();
+  }, []);
+
+  // Sync to localStorage and Supabase on change
   useEffect(() => {
     localStorage.setItem('islamic-chatbot-history', JSON.stringify(chats));
+    if (chats.length > 0) {
+      chats.forEach(chat => {
+        saveChatToSupabase(chat);
+      });
+    }
   }, [chats]);
 
   const [aiModel, setAiModel] = useState(() => {
     const saved = localStorage.getItem('islamic-chatbot-model');
     // Ensure the saved model is one of the available models, otherwise fallback
     const isValid = AVAILABLE_MODELS.some(m => m.id === saved);
-    return isValid && saved ? saved : 'llama-3.1-8b-instant';
+    return isValid && saved ? saved : 'allam-2-7b';
   });
 
   useEffect(() => {
     localStorage.setItem('islamic-chatbot-model', aiModel);
   }, [aiModel]);
+
+  const [apiKey, setApiKey] = useState(() => {
+    return localStorage.getItem('islamic-chatbot-apikey') || '';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('islamic-chatbot-apikey', apiKey);
+  }, [apiKey]);
 
   const currentChat = chats.find(c => c.id === currentChatId) || null;
 
@@ -89,6 +116,8 @@ function App() {
           setGlassSettings={setGlassSettings}
           aiModel={aiModel}
           setAiModel={setAiModel}
+          apiKey={apiKey}
+          setApiKey={setApiKey}
         />
       ) : (
         <ChatWindow 
@@ -98,6 +127,8 @@ function App() {
           setCurrentChatId={setCurrentChatId}
           glassSettings={glassSettings}
           aiModel={aiModel}
+          setAiModel={setAiModel}
+          apiKey={apiKey}
         />
       )}
     </>

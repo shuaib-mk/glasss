@@ -9,9 +9,11 @@ interface SettingsPageProps {
   setGlassSettings: (s: GlassSettings | ((prev: GlassSettings) => GlassSettings)) => void;
   aiModel: string;
   setAiModel: (m: string) => void;
+  apiKey: string;
+  setApiKey: (key: string) => void;
 }
 
-export default function SettingsPage({ close, glassSettings, setGlassSettings, aiModel, setAiModel }: SettingsPageProps) {
+export default function SettingsPage({ close, glassSettings, setGlassSettings, aiModel, setAiModel, apiKey, setApiKey }: SettingsPageProps) {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', padding: '2rem', overflowY: 'auto' }}>
       <button 
@@ -28,30 +30,56 @@ export default function SettingsPage({ close, glassSettings, setGlassSettings, a
         <section className="glass-panel" style={{ padding: '2rem', borderRadius: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
             <Cpu size={24} color="var(--accent-color)" />
-            <h2 style={{ fontSize: '1.25rem', margin: 0, color: 'var(--text-primary)' }}>AI Model Selection</h2>
+            <h2 style={{ fontSize: '1.25rem', margin: 0, color: 'var(--text-primary)' }}>AI Configuration & Models</h2>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <p style={{ color: 'var(--text-secondary)' }}>Select the AI model that powers the chatbot. Some models have higher limits or different capabilities.</p>
-            <select 
-              value={aiModel}
-              onChange={(e) => setAiModel(e.target.value)}
-              style={{
-                background: 'var(--glass-bg)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--glass-border)',
-                padding: '0.75rem 1rem',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              {AVAILABLE_MODELS.map(model => (
-                <option key={model.id} value={model.id} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-                  {model.name} — {model.limit}
-                </option>
-              ))}
-            </select>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Groq API Key (Optional override)</label>
+              <input 
+                type="password"
+                placeholder="gsk_..."
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'var(--glass-bg)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--glass-border)',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  outline: 'none'
+                }}
+              />
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                If left empty, Hikmah AI will use the key configured in server environment variables.
+              </p>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Selected AI Model</label>
+              <select 
+                value={aiModel}
+                onChange={(e) => setAiModel(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'var(--glass-bg)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--glass-border)',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {AVAILABLE_MODELS.map(model => (
+                  <option key={model.id} value={model.id} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+                    {model.name} — {model.limit}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </section>
 

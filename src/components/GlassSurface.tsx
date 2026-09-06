@@ -40,9 +40,11 @@ const GlassSurface = ({
 
   const generateDisplacementMap = () => {
     const rect = containerRef.current?.getBoundingClientRect();
-    const actualWidth = rect?.width || 400;
-    const actualHeight = rect?.height || 200;
-    const edgeSize = Math.min(actualWidth, actualHeight) * (borderWidth * 0.5);
+    const actualWidth = Math.max(rect?.width || (typeof width === 'number' ? width : 300), 10);
+    const actualHeight = Math.max(rect?.height || (typeof height === 'number' ? height : 80), 10);
+    const edgeSize = Math.max(Math.min(actualWidth, actualHeight) * (borderWidth * 0.5), 0);
+    const innerWidth = Math.max(actualWidth - edgeSize * 2, 1);
+    const innerHeight = Math.max(actualHeight - edgeSize * 2, 1);
 
     const svgContent = `
       <svg viewBox="0 0 ${actualWidth} ${actualHeight}" xmlns="http://www.w3.org/2000/svg">
@@ -59,7 +61,7 @@ const GlassSurface = ({
         <rect x="0" y="0" width="${actualWidth}" height="${actualHeight}" fill="black"></rect>
         <rect x="0" y="0" width="${actualWidth}" height="${actualHeight}" rx="${borderRadius}" fill="url(#${redGradId})" />
         <rect x="0" y="0" width="${actualWidth}" height="${actualHeight}" rx="${borderRadius}" fill="url(#${blueGradId})" style="mix-blend-mode: ${mixBlendMode}" />
-        <rect x="${edgeSize}" y="${edgeSize}" width="${actualWidth - edgeSize * 2}" height="${actualHeight - edgeSize * 2}" rx="${borderRadius}" fill="hsl(0 0% ${brightness}% / ${opacity})" style="filter:blur(${blur}px)" />
+        <rect x="${edgeSize}" y="${edgeSize}" width="${innerWidth}" height="${innerHeight}" rx="${borderRadius}" fill="hsl(0 0% ${brightness}% / ${opacity})" style="filter:blur(${blur}px)" />
       </svg>
     `;
 
@@ -67,7 +69,13 @@ const GlassSurface = ({
   };
 
   const updateDisplacementMap = () => {
-    feImageRef.current?.setAttribute('href', generateDisplacementMap());
+    try {
+      if (feImageRef.current && containerRef.current) {
+        feImageRef.current.setAttribute('href', generateDisplacementMap());
+      }
+    } catch (e) {
+      // Ignore transient resize errors
+    }
   };
 
   useEffect(() => {

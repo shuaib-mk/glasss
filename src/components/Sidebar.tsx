@@ -1,8 +1,8 @@
-import { Plus, MessageSquare, Settings, Trash2, FolderOpen, UploadCloud, FileText, Loader2 } from 'lucide-react';
+import { Plus, MessageSquare, Settings, Trash2, FolderOpen, UploadCloud, Loader2, Sparkles, BookOpen } from 'lucide-react';
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import type { Chat, GlassSettings } from '../types';
 import GlassSurface from './GlassSurface';
+import { deleteChatFromSupabase } from '../supabase';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -14,6 +14,37 @@ interface SidebarProps {
   glassSettings: GlassSettings;
   setGlassSettings: (s: GlassSettings | ((prev: GlassSettings) => GlassSettings)) => void;
   setIsSettingsOpen: (open: boolean) => void;
+}
+
+// Group chats chronologically like Claude AI
+function groupChatsByDate(chats: Chat[]) {
+  const now = Date.now();
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+
+  const today: Chat[] = [];
+  const yesterday: Chat[] = [];
+  const previous7Days: Chat[] = [];
+  const older: Chat[] = [];
+
+  chats.forEach(chat => {
+    const diff = now - chat.updatedAt;
+    if (diff < ONE_DAY) {
+      today.push(chat);
+    } else if (diff < 2 * ONE_DAY) {
+      yesterday.push(chat);
+    } else if (diff < 7 * ONE_DAY) {
+      previous7Days.push(chat);
+    } else {
+      older.push(chat);
+    }
+  });
+
+  return [
+    { label: 'Today', items: today },
+    { label: 'Yesterday', items: yesterday },
+    { label: 'Previous 7 Days', items: previous7Days },
+    { label: 'Older', items: older },
+  ].filter(group => group.items.length > 0);
 }
 
 export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentChatId, setCurrentChatId, glassSettings, setIsSettingsOpen }: SidebarProps) {
@@ -70,18 +101,13 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
     zIndex: 50,
     display: 'flex',
     flexDirection: 'column',
-    borderRadius: '16px',
+    borderRadius: '20px',
     padding: 0,
     background: 'transparent',
     border: 'none',
-    margin: 0
-  };
-
-  const springPhysics = {
-    type: 'spring' as const,
-    stiffness: 380,
-    damping: 26,
-    mass: 0.9
+    margin: 0,
+    transform: isOpen ? 'translateX(0)' : 'translateX(-120%)',
+    transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
   };
 
   const handleNewChat = () => {
@@ -92,168 +118,199 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
   const deleteChat = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     setChats(prev => prev.filter(c => c.id !== id));
+    deleteChatFromSupabase(id);
     if (currentChatId === id) setCurrentChatId(null);
   };
 
+  const groupedChatHistory = groupChatsByDate(chats);
+
   return (
     <>
-      {/* Layered Backdrop Fade */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.4 }}
-            exit={{ opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            onClick={() => setIsOpen(false)}
-            style={{
-              position: 'fixed',
-              top: 0, left: 0, right: 0, bottom: 0,
-              background: 'black',
-              zIndex: 45
-            }}
-          />
-        )}
-      </AnimatePresence>
+      {/* Mobile Backdrop Fade */}
+      {isOpen && (
+        <div
+          onClick={() => setIsOpen(false)}
+          className="mobile-overlay animate-in"
+        />
+      )}
 
-      <motion.aside 
-        className="sidebar" 
-        style={sidebarStyle}
-        initial={false}
-        animate={{ x: isOpen ? 0 : '-120%' }}
-        transition={springPhysics}
-        drag="x"
-        dragConstraints={{ left: -300, right: 0 }}
-        dragElastic={0.1}
-        onDragEnd={(_e, { offset, velocity }) => {
-          if (offset.x < -100 || velocity.x < -500) {
-            setIsOpen(false);
-          } else {
-            // Snap back open
-            setIsOpen(true);
-          }
-        }}
-      >
-      <GlassSurface
-        width="100%" 
-        height="100%"
-        {...glassSettings}
-        borderRadius={16} // Keep the sidebar border radius fixed
-        mixBlendMode="screen"
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: '1.5rem', position: 'relative', zIndex: 1 }}>
-          <button 
-        onClick={handleNewChat}
-        className="new-chat-btn" 
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          padding: '0.75rem 1rem',
-          borderRadius: '12px',
-          background: 'rgba(20, 20, 20, 0.85)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          color: 'var(--text-primary)',
-          fontWeight: 500,
-          marginBottom: '2rem'
-        }}
-      >
-        <Plus size={18} />
-        <span>New Chat</span>
-      </button>
-
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', padding: '0.25rem', background: 'rgba(0,0,0,0.6)', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-        <button 
-          onClick={() => setActiveTab('chats')}
-          style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', background: activeTab === 'chats' ? 'rgba(40, 40, 40, 0.9)' : 'transparent', color: activeTab === 'chats' ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+      <aside className="sidebar" style={sidebarStyle}>
+        <GlassSurface
+          width="100%" 
+          height="100%"
+          {...glassSettings}
+          borderRadius={20}
+          mixBlendMode="screen"
         >
-          <MessageSquare size={14} /> Chats
-        </button>
-        <button 
-          onClick={() => setActiveTab('knowledge')}
-          style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', background: activeTab === 'knowledge' ? 'rgba(40, 40, 40, 0.9)' : 'transparent', color: activeTab === 'knowledge' ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-        >
-          <FolderOpen size={14} /> Knowledge
-        </button>
-      </div>
-
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        {activeTab === 'chats' ? (
-          <>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem' }}>
-              Recent
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {chats.map(chat => (
-                <button 
-                  key={chat.id}
-                  onClick={() => { setCurrentChatId(chat.id); setIsOpen(false); }}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.75rem', 
-                    color: currentChatId === chat.id ? 'var(--text-primary)' : 'var(--text-secondary)', 
-                    background: currentChatId === chat.id ? 'rgba(40, 40, 40, 0.9)' : 'rgba(20, 20, 20, 0.75)',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    padding: '0.75rem', 
-                    borderRadius: '8px', 
-                    textAlign: 'left',
-                    justifyContent: 'space-between'
-                  }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden' }}>
-                    <MessageSquare size={16} />
-                    <span style={{ fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {chat.title}
-                    </span>
-                  </div>
-                  <Trash2 size={14} color="var(--text-muted)" onClick={(e) => deleteChat(e, chat.id)} style={{ cursor: 'pointer', flexShrink: 0 }} />
-                </button>
-              ))}
+          <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: '1.25rem', position: 'relative', zIndex: 1 }}>
+            
+            {/* Branding Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--glass-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ 
+                  width: '28px', height: '28px', borderRadius: '8px', 
+                  background: 'var(--accent-soft)', border: '1px solid rgba(218, 119, 86, 0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <Sparkles size={14} color="var(--accent-color)" />
+                </div>
+                <span className="serif-title" style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>Hikmah AI</span>
+              </div>
+              <span style={{ fontSize: '0.7rem', color: 'var(--accent-color)', background: 'var(--accent-soft)', padding: '0.2rem 0.5rem', borderRadius: '99px', fontWeight: 600 }}>
+                v2.0
+              </span>
             </div>
-          </>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <input type="file" accept=".pdf,.txt" ref={fileInputRef} onChange={handleFileUpload} style={{ display: 'none' }} />
+
+            {/* New Chat Button */}
             <button 
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
+              onClick={handleNewChat}
               style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '1rem',
-                border: '1px dashed rgba(255, 255, 255, 0.2)', borderRadius: '12px', background: 'rgba(20, 20, 20, 0.85)',
-                color: 'var(--text-primary)', fontSize: '0.85rem', cursor: 'pointer', transition: 'background 0.2s'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.6rem',
+                padding: '0.75rem 1rem',
+                borderRadius: '12px',
+                background: 'var(--accent-color)',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                marginBottom: '1.25rem',
+                boxShadow: '0 4px 14px rgba(218, 119, 86, 0.35)',
+                transition: 'all 0.2s ease'
               }}
             >
-              {isUploading ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} color="var(--accent-color)" />}
-              {isUploading ? 'Uploading & Learning...' : 'Upload Document'}
+              <Plus size={18} />
+              <span>New Chat</span>
             </button>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
-              {documents.map(doc => (
-                <div key={doc.filename} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: '8px', background: 'rgba(20, 20, 20, 0.75)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <FileText size={16} color="var(--accent-color)" />
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {doc.filename}
-                  </span>
+
+            {/* Tab Switcher */}
+            <div style={{ 
+              display: 'flex', gap: '0.25rem', marginBottom: '1.25rem', padding: '0.25rem', 
+              background: 'rgba(20, 18, 16, 0.6)', borderRadius: '12px', border: '1px solid var(--glass-border)' 
+            }}>
+              <button 
+                onClick={() => setActiveTab('chats')}
+                style={{ 
+                  flex: 1, padding: '0.45rem', borderRadius: '8px', 
+                  background: activeTab === 'chats' ? 'rgba(44, 40, 36, 0.9)' : 'transparent', 
+                  color: activeTab === 'chats' ? 'var(--text-primary)' : 'var(--text-muted)', 
+                  fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' 
+                }}
+              >
+                <MessageSquare size={13} /> Chats
+              </button>
+              <button 
+                onClick={() => setActiveTab('knowledge')}
+                style={{ 
+                  flex: 1, padding: '0.45rem', borderRadius: '8px', 
+                  background: activeTab === 'knowledge' ? 'rgba(44, 40, 36, 0.9)' : 'transparent', 
+                  color: activeTab === 'knowledge' ? 'var(--text-primary)' : 'var(--text-muted)', 
+                  fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' 
+                }}
+              >
+                <FolderOpen size={13} /> Knowledge
+              </button>
+            </div>
+
+            {/* Main Section Content */}
+            <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.2rem' }}>
+              {activeTab === 'chats' ? (
+                chats.length === 0 ? (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '2rem' }}>No conversations yet.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    {groupedChatHistory.map(group => (
+                      <div key={group.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 600, paddingLeft: '0.4rem' }}>
+                          {group.label}
+                        </span>
+                        {group.items.map(chat => (
+                          <button 
+                            key={chat.id}
+                            onClick={() => { setCurrentChatId(chat.id); setIsOpen(false); }}
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '0.65rem', 
+                              color: currentChatId === chat.id ? 'var(--text-primary)' : 'var(--text-secondary)', 
+                              background: currentChatId === chat.id ? 'rgba(44, 40, 36, 0.95)' : 'rgba(32, 29, 26, 0.4)',
+                              border: currentChatId === chat.id ? '1px solid rgba(218, 119, 86, 0.3)' : '1px solid transparent',
+                              padding: '0.65rem 0.75rem', 
+                              borderRadius: '10px', 
+                              textAlign: 'left',
+                              justifyContent: 'space-between',
+                              transition: 'all 0.15s ease'
+                            }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', overflow: 'hidden' }}>
+                              <MessageSquare size={14} color={currentChatId === chat.id ? "var(--accent-color)" : "var(--text-muted)"} />
+                              <span style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {chat.title}
+                              </span>
+                            </div>
+                            <Trash2 size={13} color="var(--text-muted)" onClick={(e) => deleteChat(e, chat.id)} style={{ cursor: 'pointer', flexShrink: 0, opacity: 0.7 }} />
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                /* Knowledge Base Tab */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <input type="file" accept=".pdf,.txt,.md" ref={fileInputRef} onChange={handleFileUpload} style={{ display: 'none' }} />
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '1.25rem',
+                      border: '1.5px dashed rgba(218, 119, 86, 0.3)', borderRadius: '14px', background: 'rgba(218, 119, 86, 0.05)',
+                      color: 'var(--text-primary)', fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                  >
+                    {isUploading ? <Loader2 size={20} className="animate-spin" color="var(--accent-color)" /> : <UploadCloud size={20} color="var(--accent-color)" />}
+                    <span>{isUploading ? 'Uploading & Indexing...' : 'Upload Knowledge File'}</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>PDF, TXT, MD supported</span>
+                  </button>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 600, paddingLeft: '0.4rem' }}>
+                      Indexed Documents ({documents.length})
+                    </span>
+                    {documents.map(doc => (
+                      <div key={doc.filename} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.65rem 0.75rem', borderRadius: '10px', background: 'rgba(32, 29, 26, 0.6)', border: '1px solid var(--glass-border)' }}>
+                        <BookOpen size={14} color="var(--accent-color)" />
+                        <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {doc.filename}
+                        </span>
+                      </div>
+                    ))}
+                    {documents.length === 0 && !isUploading && (
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '1rem' }}>No documents uploaded yet.</p>
+                    )}
+                  </div>
                 </div>
-              ))}
-              {documents.length === 0 && !isUploading && (
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '1rem' }}>No documents in knowledge base.</p>
               )}
             </div>
-          </div>
-        )}
-      </div>
 
-      <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
-        <button 
-          onClick={() => setIsSettingsOpen(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', padding: '0.5rem', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%' }}>
-          <Settings size={18} />
-          <span style={{ fontSize: '0.9rem' }}>Settings</span>
-        </button>
-      </div>
-        </div>
-      </GlassSurface>
-      </motion.aside>
+            {/* Bottom Settings Button */}
+            <div style={{ marginTop: 'auto', paddingTop: '0.85rem', borderTop: '1px solid var(--glass-border)' }}>
+              <button 
+                onClick={() => setIsSettingsOpen(true)}
+                style={{ 
+                  display: 'flex', alignItems: 'center', gap: '0.75rem', 
+                  color: 'var(--text-secondary)', padding: '0.6rem 0.75rem', 
+                  borderRadius: '10px', background: 'transparent', width: '100%', transition: 'background 0.2s' 
+                }}
+              >
+                <Settings size={16} />
+                <span style={{ fontSize: '0.88rem' }}>Settings & API</span>
+              </button>
+            </div>
+
+          </div>
+        </GlassSurface>
+      </aside>
     </>
   );
 }
