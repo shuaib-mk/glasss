@@ -132,7 +132,8 @@ export default function SettingsPage({ close, glassSettings, setGlassSettings, a
           {/* Live Preview area inside Settings */}
           <div style={{ marginTop: '3rem', padding: '2rem', background: 'var(--bg-primary)', borderRadius: '12px', border: '1px solid var(--glass-border)', position: 'relative', overflow: 'hidden' }}>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', textAlign: 'center' }}>Live Preview</p>
-            <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', zIndex: 2, color: 'var(--accent-color)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', position: 'relative', zIndex: 2, color: 'var(--accent-color)' }}>
+               <img src="/logo.png" alt="Sunni AI Logo" style={{ width: '42px', height: '42px', objectFit: 'contain' }} />
                <h1 style={{ fontSize: '3rem', margin: 0, filter: 'blur(2px)' }}>Sunni AI</h1>
             </div>
             <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10, pointerEvents: 'none' }}>

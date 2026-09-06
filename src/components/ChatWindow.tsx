@@ -378,7 +378,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         <div style={{ pointerEvents: 'auto' }}>
           <GlassSurface width={140} height={38} {...glassSettings} borderRadius={50}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', width: '100%', height: '100%' }}>
-              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-color)', boxShadow: '0 0 6px var(--accent-color)' }} />
+              <img src="/logo.png" alt="Sunni AI Logo" style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
               <span className="serif-title" style={{ fontSize: '1.15rem', color: 'var(--text-primary)' }}>Sunni AI</span>
             </div>
           </GlassSurface>
@@ -429,7 +429,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
                 border: '1px solid rgba(218, 119, 86, 0.3)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem'
               }}>
-                <Sparkles size={24} color="var(--accent-color)" />
+                <img src="/logo.png" alt="Sunni AI Logo" style={{ width: '34px', height: '34px', objectFit: 'contain' }} />
               </div>
 
               <h1 className="serif-title" style={{ fontSize: '2.4rem', color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
@@ -746,7 +746,7 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
             background: 'var(--accent-soft)', border: '1px solid rgba(218, 119, 86, 0.25)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '3px'
           }}>
-            <Sparkles size={15} color="var(--accent-color)" />
+            <img src="/logo.png" alt="Sunni AI" style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
           </div>
         )}
 

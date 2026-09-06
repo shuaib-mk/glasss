@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, Settings, Trash2, FolderOpen, UploadCloud, Loader2, Sparkles, BookOpen } from 'lucide-react';
+import { Plus, MessageSquare, Settings, Trash2, FolderOpen, UploadCloud, Loader2, BookOpen } from 'lucide-react';
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import type { Chat, GlassSettings } from '../types';
 import GlassSurface from './GlassSurface';
@@ -152,7 +152,7 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
                   background: 'var(--accent-soft)', border: '1px solid rgba(218, 119, 86, 0.3)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>
-                  <Sparkles size={14} color="var(--accent-color)" />
+                  <img src="/logo.png" alt="Sunni AI" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
                 </div>
                 <span className="serif-title" style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>Sunni AI</span>
               </div>
