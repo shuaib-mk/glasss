@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Shield, Key, Cpu, FileText, Database, Activity, RefreshCw, Trash2, CheckCircle2, AlertCircle, X, Lock, Unlock, Server } from 'lucide-react';
 import { AVAILABLE_MODELS, type GlassSettings, type SystemLog, type AdminConfig } from '../types';
 import GlassSurface from './GlassSurface';
-import { supabase, clearAllChatsFromSupabase } from '../supabase';
+import { supabase, clearAllChatsFromSupabase, logRequestToSupabase, fetchSystemLogsFromSupabase, clearSystemLogsFromSupabase } from '../supabase';
 
 interface AdminPanelProps {
   close: () => void;
@@ -29,7 +29,7 @@ CRITICAL LANGUAGE MANDATE:
 5. Match user greetings naturally in English (e.g. if the user says "hi" or "hello", reply in English like "Hello! How can I assist you today?").
 6. Do NOT output internal reasoning blocks or <think> tags.`;
 
-// Helper to record an Admin Request Log
+// Helper to record an Admin Request Log (Local + Supabase Global Sync)
 export function addAdminLog(log: Omit<SystemLog, 'id' | 'timestamp'>) {
   try {
     const existing = localStorage.getItem('sunni-admin-logs');
@@ -40,11 +40,13 @@ export function addAdminLog(log: Omit<SystemLog, 'id' | 'timestamp'>) {
       ...log
     };
     logs.unshift(newLog);
-    // Keep last 100 logs
     localStorage.setItem('sunni-admin-logs', JSON.stringify(logs.slice(0, 100)));
   } catch (e) {
     console.warn('Failed to add admin log:', e);
   }
+
+  // Real-time broadcast to Supabase global admin telemetry
+  logRequestToSupabase(log);
 }
 
 export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, apiKey, setApiKey }: AdminPanelProps) {
@@ -78,14 +80,38 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
 
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Live polling every 3s when Admin Panel is open
   useEffect(() => {
     if (isAuthenticated) {
       loadLogs();
       fetchDbStats();
+      const interval = setInterval(() => {
+        loadLogs();
+        fetchDbStats();
+      }, 3000);
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
 
-  const loadLogs = () => {
+  const loadLogs = async () => {
+    try {
+      const dbLogs = await fetchSystemLogsFromSupabase();
+      if (dbLogs && dbLogs.length > 0) {
+        const formatted: SystemLog[] = dbLogs.map(l => ({
+          id: l.id,
+          timestamp: new Date(l.created_at).getTime(),
+          model: l.model,
+          promptSnippet: l.prompt_snippet,
+          latencyMs: l.latency_ms,
+          status: l.status,
+          errorDetails: l.error_details || undefined
+        }));
+        setLogs(formatted);
+        return;
+      }
+    } catch (e) {}
+
+    // Fallback to local logs
     try {
       const saved = localStorage.getItem('sunni-admin-logs');
       if (saved) setLogs(JSON.parse(saved));
@@ -126,8 +152,9 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
-  const handleClearLogs = () => {
+  const handleClearLogs = async () => {
     localStorage.removeItem('sunni-admin-logs');
+    await clearSystemLogsFromSupabase();
     setLogs([]);
   };
 

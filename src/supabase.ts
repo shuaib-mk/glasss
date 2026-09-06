@@ -46,6 +46,12 @@ export function purgeSessionOnUnload(targetSessionId?: string) {
   } catch (err) {
     console.warn('Purge session on unload error:', err);
   }
+
+  // Clear local browser cache
+  try {
+    localStorage.removeItem('islamic-chatbot-history');
+    localStorage.removeItem('sunni-session-id');
+  } catch (e) {}
 }
 
 /**
@@ -195,6 +201,64 @@ export async function clearAllChatsFromSupabase(): Promise<boolean> {
     return true;
   } catch (err) {
     console.error('Error clearing chats from Supabase:', err);
+    return false;
+  }
+}
+
+/**
+ * Log user request telemetry to Supabase system_logs table for global live admin monitoring
+ */
+export async function logRequestToSupabase(log: {
+  model: string;
+  promptSnippet: string;
+  latencyMs: number;
+  status: 'success' | 'error';
+  errorDetails?: string;
+}) {
+  try {
+    const sessionId = getSessionId();
+    await supabase.from('system_logs').insert({
+      session_id: sessionId,
+      model: log.model,
+      prompt_snippet: log.promptSnippet,
+      latency_ms: log.latencyMs,
+      status: log.status,
+      error_details: log.errorDetails || null
+    });
+  } catch (e) {
+    console.warn('Supabase system log insert warning:', e);
+  }
+}
+
+/**
+ * Fetch latest 100 live request logs across all users from Supabase
+ */
+export async function fetchSystemLogsFromSupabase(): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('system_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) {
+      console.warn('Supabase fetch logs warning:', error.message);
+      return [];
+    }
+    return data || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * Clear all system logs from Supabase
+ */
+export async function clearSystemLogsFromSupabase(): Promise<boolean> {
+  try {
+    await supabase.from('system_logs').delete().neq('session_id', 'none');
+    return true;
+  } catch (e) {
     return false;
   }
 }

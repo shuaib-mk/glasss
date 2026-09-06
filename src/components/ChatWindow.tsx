@@ -63,10 +63,16 @@ async function streamDirectGroqChat({
   apiKey?: string;
   onChunk: (chunk: string) => void;
 }) {
-  const defaultKey = ['gsk_1PWFTdO4iGLVnDYnPO81', 'WGdyb3FYoQNLWm2CSlZAPrXifilAJrAJ'].join('');
-  const groqKey = (apiKey || import.meta.env.VITE_GROQ_API_KEY || defaultKey).trim();
+  let adminConfig: any = null;
+  try {
+    const saved = localStorage.getItem('sunni-admin-config');
+    if (saved) adminConfig = JSON.parse(saved);
+  } catch (e) {}
 
-  const systemPrompt = `You are Sunni AI, a fast, intelligent, and respectful Islamic Knowledge Assistant created by q04ti, a developer and student.
+  const defaultKey = ['gsk_1PWFTdO4iGLVnDYnPO81', 'WGdyb3FYoQNLWm2CSlZAPrXifilAJrAJ'].join('');
+  const groqKey = (adminConfig?.customApiKey || apiKey || import.meta.env.VITE_GROQ_API_KEY || defaultKey).trim();
+
+  const defaultSystemPrompt = `You are Sunni AI, a fast, intelligent, and respectful Islamic Knowledge Assistant created by q04ti, a developer and student.
 Your goal is to provide instant, accurate, and concise answers regarding Quran, Hadith, Islamic jurisprudence (fiqh), theology (aqeedah), and history.
 
 CREATOR & IDENTITY:
@@ -81,6 +87,8 @@ CRITICAL LANGUAGE MANDATE:
    - Immediately follow it with the English translation and explanation.
 5. Match user greetings naturally in English (e.g. if the user says "hi" or "hello", reply in English like "Hello! How can I assist you today?").
 6. Do NOT output internal reasoning blocks or <think> tags.`;
+
+  const systemPrompt = adminConfig?.systemPrompt || defaultSystemPrompt;
 
   const groqMessages = [
     { role: 'system', content: systemPrompt },
@@ -103,10 +111,10 @@ CRITICAL LANGUAGE MANDATE:
       'Authorization': `Bearer ${groqKey}`
     },
     body: JSON.stringify({
-      model: model || 'allam-2-7b',
+      model: model || adminConfig?.defaultModel || 'allam-2-7b',
       messages: groqMessages,
-      temperature: 0.6,
-      max_tokens: 750,
+      temperature: adminConfig?.temperature ?? 0.6,
+      max_tokens: adminConfig?.maxTokens ?? 750,
       stream: true
     })
   });
