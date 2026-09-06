@@ -11,7 +11,19 @@ import { fetchChatsFromSupabase, saveChatToSupabase, purgeSessionOnUnload } from
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(() => {
+    return window.location.pathname.toLowerCase().startsWith('/admin');
+  });
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (window.location.pathname.toLowerCase().startsWith('/admin')) {
+        setIsAdminOpen(true);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [glassSettings, setGlassSettings] = useState<GlassSettings>({
     saturation: 0,
     opacity: 0.93,
@@ -124,12 +136,16 @@ function App() {
         glassSettings={glassSettings}
         setGlassSettings={setGlassSettings}
         setIsSettingsOpen={setIsSettingsOpen}
-        setIsAdminOpen={setIsAdminOpen}
       />
 
       {isAdminOpen && (
         <AdminPanel
-          close={() => setIsAdminOpen(false)}
+          close={() => {
+            setIsAdminOpen(false);
+            if (window.location.pathname.toLowerCase().startsWith('/admin')) {
+              window.history.pushState({}, '', '/');
+            }
+          }}
           glassSettings={glassSettings}
           aiModel={aiModel}
           setAiModel={setAiModel}
