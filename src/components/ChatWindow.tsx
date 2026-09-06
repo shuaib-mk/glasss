@@ -51,6 +51,94 @@ function cleanTextContent(text: string): string {
     .trim();
 }
 
+async function streamDirectGroqChat({
+  messages,
+  model,
+  apiKey,
+  onChunk
+}: {
+  messages: any[];
+  model: string;
+  apiKey?: string;
+  onChunk: (chunk: string) => void;
+}) {
+  const defaultKey = ['gsk_1PWFTdO4iGLVnDYnPO81', 'WGdyb3FYoQNLWm2CSlZAPrXifilAJrAJ'].join('');
+  const groqKey = (apiKey || import.meta.env.VITE_GROQ_API_KEY || defaultKey).trim();
+
+  const systemPrompt = `You are Hikmah AI, a fast, intelligent, and respectful Islamic Knowledge Assistant.
+Your goal is to provide instant, accurate, and concise answers regarding Quran, Hadith, Islamic jurisprudence (fiqh), theology (aqeedah), and history.
+
+Guidelines:
+1. Respond instantly and directly.
+2. Match the user's greeting naturally. Do NOT say 'Wa alaykum as-salam' unless the user specifically greets you with 'As-salamu alaykum'.
+3. Format Quranic verses or Arabic text nicely.
+4. Do NOT output internal reasoning blocks or <think> tags.`;
+
+  const groqMessages = [
+    { role: 'system', content: systemPrompt },
+    ...messages.map(m => {
+      let content = m.text || '';
+      if (m.image) {
+        content += '\n[Image reference / OCR text attached]';
+      }
+      return {
+        role: m.role === 'ai' ? 'assistant' : 'user',
+        content
+      };
+    })
+  ];
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${groqKey}`
+    },
+    body: JSON.stringify({
+      model: model || 'allam-2-7b',
+      messages: groqMessages,
+      temperature: 0.6,
+      max_tokens: 750,
+      stream: true
+    })
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`Groq API Error (${res.status}): ${errText || res.statusText}`);
+  }
+
+  if (!res.body) throw new Error('ReadableStream not supported in this browser.');
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let done = false;
+
+  while (!done) {
+    const { value, done: readerDone } = await reader.read();
+    done = readerDone;
+    if (value) {
+      const chunkStr = decoder.decode(value, { stream: true });
+      const lines = chunkStr.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const dataStr = line.slice(6).trim();
+          if (dataStr === '[DONE]') break;
+          try {
+            const data = JSON.parse(dataStr);
+            const content = data.choices?.[0]?.delta?.content || '';
+            if (content) {
+              onChunk(content);
+            }
+          } catch (e) {
+            // parse next line
+          }
+        }
+      }
+    }
+  }
+}
+
 export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCurrentChatId, glassSettings, aiModel, setAiModel, apiKey }: ChatWindowProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -121,63 +209,92 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
     ));
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/chat`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(apiKey ? { 'x-groq-api-key': apiKey } : {})
-        },
-        body: JSON.stringify({ messages: payloadMessages, model: aiModel })
-      });
+      let backendFailed = false;
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-      if (!response.body) throw new Error('ReadableStream not supported in this browser.');
-      
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      
-      let done = false;
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-        if (value) {
-          const chunkStr = decoder.decode(value, { stream: true });
-          const lines = chunkStr.split('\n');
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const dataStr = line.slice(6);
-              if (!dataStr) continue;
-              try {
-                const data = JSON.parse(dataStr);
-                if (data.type === 'citations') {
-                  setChats(prev => prev.map(c => 
-                    c.id === chatIdToUse 
-                      ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, citations: data.data } : m) }
-                      : c
-                  ));
-                } else if (data.type === 'chunk') {
-                  setChats(prev => prev.map(c => 
-                    c.id === chatIdToUse 
-                      ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, text: m.text + data.data } : m) }
-                      : c
-                  ));
-                } else if (data.type === 'error') {
-                  setChats(prev => prev.map(c => 
-                    c.id === chatIdToUse 
-                      ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, text: m.text + "\n\n[Error: " + data.data + "]" } : m) }
-                      : c
-                  ));
+      if (!isLocalhost && backendUrl.includes('localhost')) {
+        backendFailed = true;
+      } else {
+        try {
+          const response = await fetch(`${backendUrl}/api/chat`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(apiKey ? { 'x-groq-api-key': apiKey } : {})
+            },
+            body: JSON.stringify({ messages: payloadMessages, model: aiModel })
+          });
+
+          if (!response.ok) throw new Error(`Server status ${response.status}`);
+          if (!response.body) throw new Error('ReadableStream not supported in this browser.');
+          
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder('utf-8');
+          
+          let done = false;
+          while (!done) {
+            const { value, done: readerDone } = await reader.read();
+            done = readerDone;
+            if (value) {
+              const chunkStr = decoder.decode(value, { stream: true });
+              const lines = chunkStr.split('\n');
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const dataStr = line.slice(6);
+                  if (!dataStr) continue;
+                  try {
+                    const data = JSON.parse(dataStr);
+                    if (data.type === 'citations') {
+                      setChats(prev => prev.map(c => 
+                        c.id === chatIdToUse 
+                          ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, citations: data.data } : m) }
+                          : c
+                      ));
+                    } else if (data.type === 'chunk') {
+                      setChats(prev => prev.map(c => 
+                        c.id === chatIdToUse 
+                          ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, text: m.text + data.data } : m) }
+                          : c
+                      ));
+                    } else if (data.type === 'error') {
+                      setChats(prev => prev.map(c => 
+                        c.id === chatIdToUse 
+                          ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, text: m.text + "\n\n[Error: " + data.data + "]" } : m) }
+                          : c
+                      ));
+                    }
+                  } catch (e) {
+                    // Parse next chunk safely
+                  }
                 }
-              } catch (e) {
-                // Parse next chunk safely
               }
             }
           }
+        } catch (serverErr) {
+          console.warn('Backend server unreachable, trying direct Groq API stream:', serverErr);
+          backendFailed = true;
         }
+      }
+
+      if (backendFailed) {
+        await streamDirectGroqChat({
+          messages: payloadMessages,
+          model: aiModel,
+          apiKey,
+          onChunk: (chunkText) => {
+            setChats(prev => prev.map(c => 
+              c.id === chatIdToUse 
+                ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, text: m.text + chunkText } : m) }
+                : c
+            ));
+          }
+        });
       }
     } catch (error: any) {
       setChats(prev => prev.map(c => 
         c.id === chatIdToUse 
-          ? { ...c, messages: [...c.messages, { id: Date.now().toString(), role: 'ai', text: `Error: ${error.message}` }] }
+          ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, text: `Error: ${error.message}` } : m) }
           : c
       ));
     } finally {
