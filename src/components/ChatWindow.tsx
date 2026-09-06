@@ -166,15 +166,31 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
   }, [messages]);
 
   useEffect(() => {
-    if (!isLoading && !isScanning) {
+    // Only auto-focus on desktop devices to prevent mobile virtual keyboard popups
+    const isMobile = window.innerWidth < 768 || 'ontouchstart' in window;
+    if (!isLoading && !isScanning && !isMobile) {
       inputRef.current?.focus();
     }
   }, [isLoading, isScanning]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 160)}px`;
+    }
+  };
 
   const handleSubmit = async (e?: React.FormEvent, overrideText?: string) => {
     if (e) e.preventDefault();
     const userText = overrideText || input;
     if (!userText.trim() || isLoading || isScanning) return;
+
+    // Smoothly dismiss mobile virtual keyboard on prompt submit
+    inputRef.current?.blur();
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
 
     const currentImage = scannedImage;
     setInput('');
@@ -612,7 +628,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
                 ref={inputRef}
                 rows={1}
                 value={input}
-                onChange={e => setInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
