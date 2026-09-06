@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Shield, Key, Cpu, FileText, Database, Activity, RefreshCw, Trash2, CheckCircle2, AlertCircle, X, Lock, Unlock, Server, Eye } from 'lucide-react';
+import { Shield, Key, Cpu, FileText, Database, Activity, RefreshCw, Trash2, CheckCircle2, AlertCircle, X, Lock, Unlock, Server, Eye, Copy, Check } from 'lucide-react';
 import { AVAILABLE_MODELS, type GlassSettings, type SystemLog, type AdminConfig } from '../types';
 import GlassSurface from './GlassSurface';
-import { supabase, clearAllChatsFromSupabase, logRequestToSupabase, fetchSystemLogsFromSupabase, clearSystemLogsFromSupabase } from '../supabase';
+import { supabase, logRequestToSupabase, fetchSystemLogsFromSupabase, clearSystemLogsFromSupabase, universalMasterPurgeSupabase } from '../supabase';
 
 interface AdminPanelProps {
   close: () => void;
@@ -59,6 +59,10 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
   
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [selectedLog, setSelectedLog] = useState<SystemLog | null>(null);
+  const [isSupabaseLoggingActive, setIsSupabaseLoggingActive] = useState<boolean>(false);
+  const [copiedSql, setCopiedSql] = useState<boolean>(false);
+  const [purgeSuccessMessage, setPurgeSuccessMessage] = useState<string>('');
+  
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; chatCount: number; messageCount: number }>({
     connected: false,
     chatCount: 0,
@@ -100,22 +104,27 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
     // 1. Fetch live telemetry from Supabase system_logs table
     try {
       const dbLogs = await fetchSystemLogsFromSupabase();
-      if (dbLogs && dbLogs.length > 0) {
-        const formatted: SystemLog[] = dbLogs.map(l => ({
-          id: String(l.id),
-          timestamp: new Date(l.created_at || Date.now()).getTime(),
-          model: l.model || 'Unknown',
-          promptSnippet: l.prompt_snippet || l.full_prompt?.slice(0, 80) || 'N/A',
-          latencyMs: l.latency_ms || 0,
-          status: l.status || 'success',
-          errorDetails: l.error_details || undefined,
-          fullPrompt: l.full_prompt || undefined,
-          fullResponse: l.full_response || undefined,
-          sessionId: l.session_id || undefined
-        }));
-        combinedLogs = formatted;
+      if (dbLogs) {
+        setIsSupabaseLoggingActive(true);
+        if (dbLogs.length > 0) {
+          const formatted: SystemLog[] = dbLogs.map(l => ({
+            id: String(l.id),
+            timestamp: new Date(l.created_at || Date.now()).getTime(),
+            model: l.model || 'Unknown',
+            promptSnippet: l.prompt_snippet || l.full_prompt?.slice(0, 80) || 'N/A',
+            latencyMs: l.latency_ms || 0,
+            status: l.status || 'success',
+            errorDetails: l.error_details || undefined,
+            fullPrompt: l.full_prompt || undefined,
+            fullResponse: l.full_response || undefined,
+            sessionId: l.session_id || undefined
+          }));
+          combinedLogs = formatted;
+        }
       }
-    } catch (e) {}
+    } catch (e) {
+      setIsSupabaseLoggingActive(false);
+    }
 
     // 2. Fetch local storage telemetry fallback & merge unique entries
     try {
@@ -179,11 +188,13 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
     setLogs([]);
   };
 
-  const handlePurgeDatabase = async () => {
-    if (confirm('Are you sure you want to purge all active Supabase sessions and messages?')) {
-      await clearAllChatsFromSupabase();
+  const handleUniversalMasterPurge = async () => {
+    if (confirm('CRITICAL WARNING: This will permanently DELETE ALL CHATS, MESSAGES, and LOGS in Supabase across ALL users, resetting database storage strictly to 0 MB. Proceed?')) {
+      const res = await universalMasterPurgeSupabase();
       await fetchDbStats();
-      alert('Supabase sessions purged successfully!');
+      await loadLogs();
+      setPurgeSuccessMessage(res.message);
+      setTimeout(() => setPurgeSuccessMessage(''), 5000);
     }
   };
 
@@ -333,6 +344,13 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
         {saveSuccess && (
           <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '0.85rem 1.25rem', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
             <CheckCircle2 size={18} /> Admin configuration saved successfully!
+          </div>
+        )}
+
+        {/* Universal Purge success banner */}
+        {purgeSuccessMessage && (
+          <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '0.85rem 1.25rem', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+            <CheckCircle2 size={18} /> {purgeSuccessMessage}
           </div>
         )}
 
@@ -526,25 +544,101 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
         {/* TAB 4: LIVE REQUEST LOGS */}
         {activeTab === 'logs' && (
           <div className="glass-panel" style={{ padding: '2rem', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Cpu size={20} color="var(--accent-color)" /> Live Global Telemetry & AI Inspection Logs
+                  <Cpu size={20} color="var(--accent-color)" /> Live Global User Telemetry & Inspection Logs
                 </h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '0.2rem 0 0 0' }}>
-                  Auto-syncing every 3 seconds. Click any row to inspect complete prompt and AI response text.
+                  Auto-syncing every 3 seconds. Watch live user prompts, model, latency, and responses from any user worldwide.
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button onClick={loadLogs} style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.5rem 0.85rem', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
                   <RefreshCw size={14} /> Refresh
                 </button>
                 <button onClick={handleClearLogs} style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', padding: '0.5rem 0.85rem', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
-                  <Trash2 size={14} /> Clear Logs
+                  <Trash2 size={14} /> Clear Log History
+                </button>
+                <button onClick={handleUniversalMasterPurge} style={{ background: 'rgba(239, 68, 68, 0.25)', border: '1px solid rgba(239, 68, 68, 0.5)', borderRadius: '8px', padding: '0.5rem 0.85rem', color: '#f87171', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
+                  <Trash2 size={14} /> Wipe Supabase Storage (0 MB)
                 </button>
               </div>
             </div>
+
+            {/* Supabase Global Logging Setup Notice (if table missing in Supabase) */}
+            {!isSupabaseLoggingActive && (
+              <div style={{
+                background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: '16px', padding: '1.25rem', color: '#fcd34d'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.4rem' }}>
+                  <AlertCircle size={18} color="#f59e0b" /> Enable Global Telemetry Across ALL Users Worldwide
+                </div>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                  To record live prompts sent by <strong>any user on any device globally</strong> into your Supabase database, run this 5-second SQL command in your <strong>Supabase Dashboard -&gt; SQL Editor</strong>:
+                </p>
+                
+                <div style={{ position: 'relative', marginTop: '0.75rem' }}>
+                  <pre style={{
+                    background: '#141311', border: '1px solid var(--glass-border)', borderRadius: '10px',
+                    padding: '0.85rem 1rem', fontSize: '0.78rem', color: '#4ade80', overflowX: 'auto',
+                    fontFamily: 'monospace'
+                  }}>
+{`CREATE TABLE IF NOT EXISTS public.system_logs (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    prompt_snippet TEXT NOT NULL,
+    full_prompt TEXT,
+    full_response TEXT,
+    latency_ms INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    error_details TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.system_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public insert to system_logs" ON public.system_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public select from system_logs" ON public.system_logs FOR SELECT USING (true);
+CREATE POLICY "Allow public delete from system_logs" ON public.system_logs FOR DELETE USING (true);`}
+                  </pre>
+                  
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`CREATE TABLE IF NOT EXISTS public.system_logs (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    prompt_snippet TEXT NOT NULL,
+    full_prompt TEXT,
+    full_response TEXT,
+    latency_ms INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    error_details TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.system_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public insert to system_logs" ON public.system_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public select from system_logs" ON public.system_logs FOR SELECT USING (true);
+CREATE POLICY "Allow public delete from system_logs" ON public.system_logs FOR DELETE USING (true);`);
+                      setCopiedSql(true);
+                      setTimeout(() => setCopiedSql(false), 3000);
+                    }}
+                    style={{
+                      position: 'absolute', top: '0.5rem', right: '0.5rem',
+                      background: 'var(--accent-color)', color: '#ffffff',
+                      border: 'none', borderRadius: '8px', padding: '0.4rem 0.75rem',
+                      fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: '0.3rem'
+                    }}
+                  >
+                    {copiedSql ? <Check size={13} /> : <Copy size={13} />}
+                    {copiedSql ? 'Copied SQL!' : 'Copy SQL Script'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {logs.length === 0 ? (
               <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -745,21 +839,23 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
               </div>
             </div>
 
-            <div style={{ marginTop: '1rem' }}>
-              <h4 style={{ color: 'var(--text-primary)', fontSize: '1rem', marginBottom: '0.5rem' }}>Emergency Database Purge</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-                Force purge all active sessions and messages in Supabase instantly.
+            <div style={{ marginTop: '1rem', background: 'rgba(20, 19, 17, 0.6)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+              <h4 style={{ color: 'var(--text-primary)', fontSize: '1rem', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Trash2 size={18} color="#ef4444" /> Universal Supabase Storage Reset (0 MB)
+              </h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+                Master cleanup control. Wipes <strong>ALL active sessions, messages, and telemetry logs</strong> in Supabase across all users worldwide, ensuring your Supabase free tier storage returns strictly to 0 MB.
               </p>
               <button
-                onClick={handlePurgeDatabase}
+                onClick={handleUniversalMasterPurge}
                 style={{
-                  padding: '0.85rem 1.5rem', borderRadius: '12px',
-                  background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444',
-                  border: '1px solid rgba(239, 68, 68, 0.3)', fontWeight: 600,
+                  padding: '0.85rem 1.75rem', borderRadius: '12px',
+                  background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444',
+                  border: '1px solid rgba(239, 68, 68, 0.4)', fontWeight: 700,
                   fontSize: '0.95rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem'
                 }}
               >
-                <Trash2 size={16} /> Purge Supabase Sessions
+                <Trash2 size={18} /> UNIVERSAL MASTER PURGE (Reset Supabase to 0 MB)
               </button>
             </div>
           </div>

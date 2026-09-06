@@ -38,48 +38,49 @@ function App() {
     displace: 0.5,
     greenOffset: 10
   });
-  const [chats, setChats] = useState<Chat[]>(() => {
-    const saved = localStorage.getItem('islamic-chatbot-history');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return [];
-      }
-    }
-    return [];
-  });
+  const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
 
-  // Automatically delete Supabase session data when user leaves/closes tab
+  // Automatically delete Supabase session data and local cache when user leaves/closes tab
   useEffect(() => {
     const handleLeave = () => {
       purgeSessionOnUnload();
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        purgeSessionOnUnload();
+      }
+    };
+
     window.addEventListener('beforeunload', handleLeave);
     window.addEventListener('pagehide', handleLeave);
+    window.addEventListener('unload', handleLeave);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('beforeunload', handleLeave);
       window.removeEventListener('pagehide', handleLeave);
+      window.removeEventListener('unload', handleLeave);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
-  // Sync from Supabase on mount
+  // Sync from Supabase on mount for current session
   useEffect(() => {
     async function loadSupabaseData() {
       const dbChats = await fetchChatsFromSupabase();
       if (dbChats && dbChats.length > 0) {
         setChats(dbChats);
+      } else {
+        setChats([]);
       }
     }
     loadSupabaseData();
   }, []);
 
-  // Sync to localStorage and Supabase on change
+  // Sync to Supabase on chat change
   useEffect(() => {
-    localStorage.setItem('islamic-chatbot-history', JSON.stringify(chats));
     if (chats.length > 0) {
       chats.forEach(chat => {
         saveChatToSupabase(chat);

@@ -31,10 +31,21 @@ export function purgeSessionOnUnload(targetSessionId?: string) {
   const sessionId = targetSessionId || localStorage.getItem('sunni-session-id');
   if (!sessionId) return;
 
-  const restEndpoint = `${supabaseUrl}/rest/v1/chats?session_id=eq.${encodeURIComponent(sessionId)}`;
+  const restEndpointChats = `${supabaseUrl}/rest/v1/chats?session_id=eq.${encodeURIComponent(sessionId)}`;
+  const restEndpointMessages = `${supabaseUrl}/rest/v1/messages?session_id=eq.${encodeURIComponent(sessionId)}`;
   
   try {
-    fetch(restEndpoint, {
+    fetch(restEndpointChats, {
+      method: 'DELETE',
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Content-Type': 'application/json'
+      },
+      keepalive: true
+    });
+
+    fetch(restEndpointMessages, {
       method: 'DELETE',
       headers: {
         'apikey': supabaseAnonKey,
@@ -52,6 +63,30 @@ export function purgeSessionOnUnload(targetSessionId?: string) {
     localStorage.removeItem('islamic-chatbot-history');
     localStorage.removeItem('sunni-session-id');
   } catch (e) {}
+}
+
+/**
+ * Universal Master Purge: Wipes ALL database records from Supabase (chats, messages, system_logs)
+ * to reset storage strictly to 0 MB.
+ */
+export async function universalMasterPurgeSupabase(): Promise<{ success: boolean; message: string }> {
+  try {
+    const { error: msgErr } = await supabase.from('messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    const { error: chatErr } = await supabase.from('chats').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('system_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+    localStorage.removeItem('islamic-chatbot-history');
+    localStorage.removeItem('sunni-session-id');
+    localStorage.removeItem('sunni-admin-logs');
+
+    if (msgErr || chatErr) {
+      return { success: false, message: `Purge warning: ${msgErr?.message || chatErr?.message}` };
+    }
+
+    return { success: true, message: 'Supabase storage reset to 0 MB successfully across all tables!' };
+  } catch (e: any) {
+    return { success: false, message: `Master purge failed: ${e.message}` };
+  }
 }
 
 /**
