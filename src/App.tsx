@@ -6,7 +6,7 @@ import Noise from './components/Noise';
 import './index.css';
 import { AVAILABLE_MODELS, type Chat, type GlassSettings } from './types';
 
-import { fetchChatsFromSupabase, saveChatToSupabase } from './supabase';
+import { fetchChatsFromSupabase, saveChatToSupabase, purgeSessionOnUnload } from './supabase';
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -37,6 +37,21 @@ function App() {
     return [];
   });
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+
+  // Automatically delete Supabase session data when user leaves/closes tab
+  useEffect(() => {
+    const handleLeave = () => {
+      purgeSessionOnUnload();
+    };
+
+    window.addEventListener('beforeunload', handleLeave);
+    window.addEventListener('pagehide', handleLeave);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleLeave);
+      window.removeEventListener('pagehide', handleLeave);
+    };
+  }, []);
 
   // Sync from Supabase on mount
   useEffect(() => {

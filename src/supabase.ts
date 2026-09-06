@@ -8,13 +8,45 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Retrieve or generate a persistent session ID for public users
 export const getSessionId = (): string => {
-  let sessionId = localStorage.getItem('sunni-session-id') || localStorage.getItem('hikmah-session-id');
+  let sessionId = localStorage.getItem('sunni-session-id');
   if (!sessionId) {
     sessionId = 'session_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
     localStorage.setItem('sunni-session-id', sessionId);
   }
   return sessionId;
 };
+
+// Generate a fresh session ID for new browser sessions
+export const renewSessionId = (): string => {
+  const newSessionId = 'session_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+  localStorage.setItem('sunni-session-id', newSessionId);
+  return newSessionId;
+};
+
+/**
+ * Automatically delete session and all messages from Supabase on tab close, reload, or navigate away.
+ * Uses fetch with keepalive: true for 100% reliable execution during page unload/hide events.
+ */
+export function purgeSessionOnUnload(targetSessionId?: string) {
+  const sessionId = targetSessionId || localStorage.getItem('sunni-session-id');
+  if (!sessionId) return;
+
+  const restEndpoint = `${supabaseUrl}/rest/v1/chats?session_id=eq.${encodeURIComponent(sessionId)}`;
+  
+  try {
+    fetch(restEndpoint, {
+      method: 'DELETE',
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Content-Type': 'application/json'
+      },
+      keepalive: true
+    });
+  } catch (err) {
+    console.warn('Purge session on unload error:', err);
+  }
+}
 
 /**
  * Fetch all chats for the current session from Supabase
