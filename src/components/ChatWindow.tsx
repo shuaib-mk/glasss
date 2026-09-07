@@ -936,6 +936,19 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                   {msg.citations.map((cite, i) => <SourcePill key={i} citation={cite} setViewingDocument={setViewingDocument} />)}
                 </div>
               )}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.4rem', 
+                marginTop: '0.6rem', 
+                paddingTop: '0.45rem', 
+                borderTop: '1px solid rgba(225, 195, 170, 0.08)',
+                fontSize: '0.74rem', 
+                color: 'var(--text-muted)'
+              }}>
+                <ShieldCheck size={13} style={{ flexShrink: 0, color: 'var(--accent-color)' }} />
+                <span>Info isn't 100% accurate as the developer is actively working to make this a 100% reliable Sunni Islamic AI.</span>
+              </div>
             </div>
           ) : (
             <div style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{msg.text}</div>
