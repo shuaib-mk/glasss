@@ -882,10 +882,12 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
         gap: '0.75rem',
         maxWidth: isAi ? '100%' : '85%',
         width: isAi ? '100%' : 'auto',
+        minWidth: 0,
         alignItems: 'flex-start',
         overflow: 'visible',
         wordBreak: 'break-word',
-        overflowWrap: 'anywhere'
+        overflowWrap: 'anywhere',
+        boxSizing: 'border-box'
       }}>
         {isAi && (
           <div style={{ 
@@ -903,7 +905,8 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
         )}
 
         <div style={{ 
-          flex: 1,
+          flex: '1 1 0%',
+          minWidth: 0,
           background: isErrorMsg ? 'rgba(239, 68, 68, 0.1)' : (isAi ? 'transparent' : 'rgba(40, 36, 33, 0.85)'),
           border: isErrorMsg ? '1px solid rgba(239, 68, 68, 0.3)' : (isAi ? 'none' : '1px solid var(--glass-border)'),
           padding: isErrorMsg ? '0.85rem 1.15rem' : (isAi ? 0 : '0.85rem 1.15rem'),
@@ -911,10 +914,12 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
           color: isErrorMsg ? '#f87171' : 'var(--text-primary)',
           lineHeight: 1.7,
           fontSize: '0.96rem',
+          width: '100%',
           maxWidth: '100%',
           overflow: 'visible',
           wordBreak: 'break-word',
-          overflowWrap: 'anywhere'
+          overflowWrap: 'anywhere',
+          boxSizing: 'border-box'
         }}>
           {msg.image && (
             <img src={msg.image} alt="Uploaded" style={{ maxWidth: '100%', maxHeight: '240px', borderRadius: '10px', marginBottom: '0.75rem', border: '1px solid var(--glass-border)', objectFit: 'contain' }} />
@@ -930,7 +935,7 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
               </div>
             </div>
           ) : isAi ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '100%', overflowX: 'hidden', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '100%', minWidth: 0, overflowX: 'hidden', wordBreak: 'break-word', overflowWrap: 'anywhere', boxSizing: 'border-box' }}>
               {!displayContent.trim() ? (
                 <div style={{ 
                   display: 'flex', 
@@ -1034,7 +1039,7 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                         <p 
                           key={`${blockIdx}-${idx}`} 
                           className={isArabicVerse ? 'arabic-text' : ''} 
-                          style={{ marginBottom: '0.4rem', wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+                          style={{ marginBottom: '0.4rem', wordBreak: 'break-word', overflowWrap: 'anywhere', maxWidth: '100%', boxSizing: 'border-box' }}
                         >
                           {cleanText}
                         </p>
