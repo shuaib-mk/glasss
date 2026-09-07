@@ -922,33 +922,65 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
             </div>
           ) : isAi ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '100%', overflowX: 'hidden', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-              {displayContent.split('\n').map((paragraph, idx) => {
-                if (!paragraph.trim()) return <br key={idx} />;
-                const cleanPara = paragraph.replace(/[\s\d\p{P}]/gu, '');
-                const arabicCount = (cleanPara.match(/[\u0600-\u06FF]/g) || []).length;
-                const isArabicVerse = cleanPara.length > 0 && (arabicCount / cleanPara.length) > 0.45;
-                let cleanText = paragraph;
-                if (isArabicVerse && cleanText.startsWith('>')) cleanText = cleanText.replace(/^>\s*/, '');
-                return <p key={idx} className={isArabicVerse ? 'arabic-text' : ''} style={{ marginBottom: '0.4rem', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{cleanText}</p>;
-              })}
-              {msg.citations && msg.citations.length > 0 && (
-                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
-                  {msg.citations.map((cite, i) => <SourcePill key={i} citation={cite} setViewingDocument={setViewingDocument} />)}
+              {!displayContent.trim() ? (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.65rem', 
+                  padding: '0.2rem 0',
+                  color: 'var(--text-secondary)' 
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    width: '24px', 
+                    height: '24px', 
+                    borderRadius: '50%', 
+                    background: 'var(--accent-soft)', 
+                    border: '1px solid rgba(218, 119, 86, 0.3)',
+                    flexShrink: 0
+                  }}>
+                    <Sparkles size={13} style={{ color: 'var(--accent-color)', animation: 'spin 3s linear infinite' }} />
+                  </div>
+                  <span style={{ fontSize: '0.92rem', fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>Thinking</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3.5px', marginTop: '2px' }}>
+                    <span className="thinking-dot" style={{ animationDelay: '0s' }} />
+                    <span className="thinking-dot" style={{ animationDelay: '0.2s' }} />
+                    <span className="thinking-dot" style={{ animationDelay: '0.4s' }} />
+                  </div>
                 </div>
+              ) : (
+                <>
+                  {displayContent.split('\n').map((paragraph, idx) => {
+                    if (!paragraph.trim()) return <br key={idx} />;
+                    const cleanPara = paragraph.replace(/[\s\d\p{P}]/gu, '');
+                    const arabicCount = (cleanPara.match(/[\u0600-\u06FF]/g) || []).length;
+                    const isArabicVerse = cleanPara.length > 0 && (arabicCount / cleanPara.length) > 0.45;
+                    let cleanText = paragraph;
+                    if (isArabicVerse && cleanText.startsWith('>')) cleanText = cleanText.replace(/^>\s*/, '');
+                    return <p key={idx} className={isArabicVerse ? 'arabic-text' : ''} style={{ marginBottom: '0.4rem', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{cleanText}</p>;
+                  })}
+                  {msg.citations && msg.citations.length > 0 && (
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                      {msg.citations.map((cite, i) => <SourcePill key={i} citation={cite} setViewingDocument={setViewingDocument} />)}
+                    </div>
+                  )}
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.4rem', 
+                    marginTop: '0.6rem', 
+                    paddingTop: '0.45rem', 
+                    borderTop: '1px solid rgba(225, 195, 170, 0.08)',
+                    fontSize: '0.74rem', 
+                    color: 'var(--text-muted)'
+                  }}>
+                    <ShieldCheck size={13} style={{ flexShrink: 0, color: 'var(--accent-color)' }} />
+                    <span>Info isn't 100% accurate as the developer is actively working to make this a 100% reliable Sunni Islamic AI.</span>
+                  </div>
+                </>
               )}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.4rem', 
-                marginTop: '0.6rem', 
-                paddingTop: '0.45rem', 
-                borderTop: '1px solid rgba(225, 195, 170, 0.08)',
-                fontSize: '0.74rem', 
-                color: 'var(--text-muted)'
-              }}>
-                <ShieldCheck size={13} style={{ flexShrink: 0, color: 'var(--accent-color)' }} />
-                <span>Info isn't 100% accurate as the developer is actively working to make this a 100% reliable Sunni Islamic AI.</span>
-              </div>
             </div>
           ) : (
             <div style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{msg.text}</div>
