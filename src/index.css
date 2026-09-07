@@ -56,6 +56,19 @@ p, span, div, pre, code, a {
   max-height: none !important;
 }
 
+/* Allow horizontal scroll on table containers without text chopping */
+.table-scroll-container {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+.table-scroll-container th,
+.table-scroll-container td {
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+}
+
 /* Editorial Title Typography (Claude Style) */
 .serif-title {
   font-family: 'Instrument Serif', Georgia, serif;

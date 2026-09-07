@@ -930,7 +930,7 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
               </div>
             </div>
           ) : isAi ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '100%', overflowX: 'hidden', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '100%', overflowX: 'visible', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
               {!displayContent.trim() ? (
                 <div style={{ 
                   display: 'flex', 
@@ -950,31 +950,35 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                 <>
                   {parseContentBlocks(displayContent).map((block, blockIdx) => {
                     if (block.type === 'table') {
+                      const calculatedMinWidth = Math.max(520, block.headers.length * 160);
                       return (
                         <div 
                           key={blockIdx} 
+                          className="table-scroll-container"
                           style={{ 
                             overflowX: 'auto', 
+                            WebkitOverflowScrolling: 'touch',
                             margin: '0.75rem 0', 
                             width: '100%', 
                             maxWidth: '100%',
                             borderRadius: '12px', 
                             border: '1px solid var(--glass-border)', 
-                            background: 'rgba(25, 23, 21, 0.65)',
-                            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)'
+                            background: 'rgba(25, 23, 21, 0.75)',
+                            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35)'
                           }}
                         >
-                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                          <table style={{ width: '100%', minWidth: `${calculatedMinWidth}px`, borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                             <thead>
                               <tr style={{ background: 'rgba(218, 119, 86, 0.14)', borderBottom: '1px solid var(--glass-border)' }}>
                                 {block.headers.map((h, hIdx) => (
                                   <th 
                                     key={hIdx} 
                                     style={{ 
-                                      padding: '0.7rem 0.9rem', 
+                                      padding: '0.75rem 0.95rem', 
                                       fontWeight: 600, 
                                       color: 'var(--text-primary)',
                                       whiteSpace: 'nowrap',
+                                      wordBreak: 'normal',
                                       borderRight: hIdx < block.headers.length - 1 ? '1px solid rgba(225, 195, 170, 0.08)' : 'none'
                                     }}
                                   >
@@ -996,10 +1000,12 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                                     <td 
                                       key={cIdx} 
                                       style={{ 
-                                        padding: '0.65rem 0.9rem', 
+                                        padding: '0.75rem 0.95rem', 
                                         color: 'var(--text-secondary)', 
-                                        lineHeight: 1.5,
+                                        lineHeight: 1.55,
                                         verticalAlign: 'top',
+                                        wordBreak: 'normal',
+                                        overflowWrap: 'break-word',
                                         borderRight: cIdx < row.length - 1 ? '1px solid rgba(225, 195, 170, 0.06)' : 'none'
                                       }}
                                     >
