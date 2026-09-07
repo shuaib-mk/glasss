@@ -59,14 +59,26 @@ p, span, div, pre, code, a {
 /* Allow horizontal scroll on table containers without text chopping */
 .table-scroll-container {
   overflow-x: auto !important;
+  overflow-y: hidden !important;
   -webkit-overflow-scrolling: touch;
-  max-width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+.table-scroll-container table {
+  width: max-content !important;
+  min-width: 100% !important;
+  table-layout: auto !important;
+  border-collapse: collapse;
 }
 
 .table-scroll-container th,
 .table-scroll-container td {
   word-break: normal !important;
   overflow-wrap: break-word !important;
+  white-space: normal;
+  box-sizing: border-box;
 }
 
 /* Editorial Title Typography (Claude Style) */
