@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Menu, Send, BookOpen, ExternalLink, Sparkles, Camera, Loader2, ChevronDown, BookMarked, ShieldCheck, Compass, FileSearch, X, Plus, AlertCircle } from 'lucide-react';
+import { Menu, Send, BookOpen, ExternalLink, Sparkles, Camera, Loader2, ChevronDown, BookMarked, ShieldCheck, Compass, FileSearch, X, Plus, AlertCircle, Copy, Check } from 'lucide-react';
 import Tesseract from 'tesseract.js';
 import type { Chat, MessageData, Citation, GlassSettings } from '../types';
 import { AVAILABLE_MODELS } from '../types';
@@ -80,6 +80,7 @@ CRITICAL FORMATTING MANDATE (STRICT NO MARKDOWN):
 6. Use double quotes " " for Quranic verses, Hadith quotes, or book titles (not asterisks).
 7. Use plain dashes - for bullet points (never asterisks).
 8. Use standard numbers 1. 2. 3. for numbered lists.
+9. DO NOT USE MARKDOWN TABLES OR PIPE SYMBOLS (|). Use clean bullet points (- item) or numbered lists instead.
 
 Examples:
 ❌ WRONG: **"Quran verse"** - Explanation:
@@ -855,8 +856,16 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
 
 // Sub-components
 function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewingDocument: (doc: string) => void }) {
+  const [copied, setCopied] = useState(false);
   const isAi = msg.role === 'ai';
   const displayContent = isAi ? cleanTextContent(msg.text) : msg.text;
+
+  const handleCopy = () => {
+    if (!displayContent) return;
+    navigator.clipboard.writeText(displayContent);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const isErrorMsg = isAi && (
     displayContent.startsWith('Error:') || 
@@ -969,15 +978,49 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                   <div style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
-                    gap: '0.4rem', 
+                    justifyContent: 'space-between',
                     marginTop: '0.6rem', 
                     paddingTop: '0.45rem', 
                     borderTop: '1px solid rgba(225, 195, 170, 0.08)',
                     fontSize: '0.74rem', 
-                    color: 'var(--text-muted)'
+                    color: 'var(--text-muted)',
+                    gap: '0.5rem',
+                    flexWrap: 'wrap'
                   }}>
-                    <ShieldCheck size={13} style={{ flexShrink: 0, color: 'var(--accent-color)' }} />
-                    <span>Info isn't 100% accurate as the developer is actively working to make this a 100% reliable Sunni Islamic AI.</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, minWidth: '200px' }}>
+                      <ShieldCheck size={13} style={{ flexShrink: 0, color: 'var(--accent-color)' }} />
+                      <span>Info isn't 100% accurate as the developer is actively working to make this a 100% reliable Sunni Islamic AI.</span>
+                    </div>
+                    <button
+                      onClick={handleCopy}
+                      title="Copy response"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: '6px',
+                        background: copied ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                        border: copied ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(225, 195, 170, 0.12)',
+                        color: copied ? '#4ade80' : 'var(--text-secondary)',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        flexShrink: 0
+                      }}
+                    >
+                      {copied ? (
+                        <>
+                          <Check size={13} />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={13} />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
                   </div>
                 </>
               )}
