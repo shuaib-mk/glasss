@@ -1,34 +1,14 @@
 /**
- * Utility function to strip ALL markdown formatting (asterisks, hashtags, backticks, underscores, links, HRs)
- * returning clean plain text.
+ * Utility function to strip markdown formatting (asterisks, hashtags, backticks, underscores, links, HRs)
+ * returning clean text while preserving markdown tables for interactive column/table UI rendering.
  */
 export function cleanTextContent(text: string): string {
   if (!text) return '';
 
-  let cleaned = text
+  return text
     // Remove internal reasoning blocks or <think> tags
     .replace(/<think>[\s\S]*?<\/think>/gi, '')
     .replace(/<think>[\s\S]*/gi, '')
-    // Remove markdown table header/divider lines like |---|---|---| or |:---|:---|
-    .replace(/^\|[\s\-:|]+\|$/gm, '')
-    .replace(/^[\s\-:|]{3,}$/gm, '');
-
-  // Convert markdown table rows (| cell 1 | cell 2 | cell 3 |) into clean bullet points
-  cleaned = cleaned.split('\n').map(line => {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.includes('|')) {
-      const cells = trimmed
-        .split('|')
-        .map(c => c.trim())
-        .filter(c => c.length > 0 && !/^[\-:]+$/.test(c));
-      if (cells.length === 0) return '';
-      if (cells.length === 1) return `- ${cells[0]}`;
-      return `- ${cells[0]}: ${cells.slice(1).join(' — ')}`;
-    }
-    return line;
-  }).join('\n');
-
-  return cleaned
     // Strip bold & italic asterisks
     .replace(/\*\*\*(.*?)\*\*\*/g, '$1')   // Bold italic ***text***
     .replace(/\*\*(.*?)\*\*/g, '$1')       // Bold **text**
@@ -51,10 +31,97 @@ export function cleanTextContent(text: string): string {
     .replace(/^[-*_]{3,}$/gm, '')
     // Convert asterisk bullet points to plain dashes (* item -> - item)
     .replace(/^\s*\*\s+/gm, '- ')
-    // Remove lingering lone asterisks or stray pipe symbols
+    // Remove lingering lone asterisks
     .replace(/\*/g, '')
-    .replace(/\|/g, '')
     // Clean excessive empty line breaks
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+export interface TextBlock {
+  type: 'paragraph';
+  content: string;
+}
+
+export interface TableBlock {
+  type: 'table';
+  headers: string[];
+  rows: string[][];
+}
+
+export type ContentBlock = TextBlock | TableBlock;
+
+/**
+ * Parses cleaned text content into structural blocks (paragraphs vs interactive HTML tables).
+ */
+export function parseContentBlocks(text: string): ContentBlock[] {
+  if (!text) return [];
+
+  const lines = text.split('\n');
+  const blocks: ContentBlock[] = [];
+  let currentParagraphLines: string[] = [];
+  let currentTableLines: string[] = [];
+
+  const flushParagraph = () => {
+    if (currentParagraphLines.length > 0) {
+      const paragraphText = currentParagraphLines.join('\n').trim();
+      if (paragraphText) {
+        blocks.push({ type: 'paragraph', content: paragraphText });
+      }
+      currentParagraphLines = [];
+    }
+  };
+
+  const flushTable = () => {
+    if (currentTableLines.length > 0) {
+      const parsedRows: string[][] = [];
+      for (const line of currentTableLines) {
+        const trimmed = line.trim();
+        // Ignore table divider lines like |---|---| or |:---|:---|
+        if (/^\|[\s\-:|]+\|$/.test(trimmed) || /^[\s\-:|]{3,}$/.test(trimmed)) {
+          continue;
+        }
+        if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+          const cells = trimmed
+            .slice(1, -1)
+            .split('|')
+            .map(c => c.trim());
+          parsedRows.push(cells);
+        }
+      }
+
+      if (parsedRows.length > 0) {
+        const headers = parsedRows[0];
+        const rows = parsedRows.slice(1);
+        blocks.push({ type: 'table', headers, rows });
+      } else {
+        currentParagraphLines.push(...currentTableLines);
+        flushParagraph();
+      }
+      currentTableLines = [];
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    const isTableRow = (trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 2) ||
+                       /^\|[\s\-:|]+\|$/.test(trimmed);
+
+    if (isTableRow) {
+      flushParagraph();
+      currentTableLines.push(line);
+    } else {
+      if (currentTableLines.length > 0) {
+        flushTable();
+      }
+      currentParagraphLines.push(line);
+    }
+  }
+
+  flushParagraph();
+  flushTable();
+
+  return blocks;
 }

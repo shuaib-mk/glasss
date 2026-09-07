@@ -5,7 +5,7 @@ import type { Chat, MessageData, Citation, GlassSettings } from '../types';
 import { AVAILABLE_MODELS } from '../types';
 import GlassSurface from './GlassSurface';
 import { addAdminLog } from './AdminPanel';
-import { cleanTextContent } from '../utils/cleanText';
+import { cleanTextContent, parseContentBlocks } from '../utils/cleanText';
 
 interface ChatWindowProps {
   toggleSidebar: () => void;
@@ -80,7 +80,7 @@ CRITICAL FORMATTING MANDATE (STRICT NO MARKDOWN):
 6. Use double quotes " " for Quranic verses, Hadith quotes, or book titles (not asterisks).
 7. Use plain dashes - for bullet points (never asterisks).
 8. Use standard numbers 1. 2. 3. for numbered lists.
-9. DO NOT USE MARKDOWN TABLES OR PIPE SYMBOLS (|). Use clean bullet points (- item) or numbered lists instead.
+9. FOR TABLES AND COLUMNS: Use standard markdown tables (| Header 1 | Header 2 |) when presenting structured comparisons or column data.
 
 Examples:
 ❌ WRONG: **"Quran verse"** - Explanation:
@@ -948,14 +948,89 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                 </div>
               ) : (
                 <>
-                  {displayContent.split('\n').map((paragraph, idx) => {
-                    if (!paragraph.trim()) return <br key={idx} />;
-                    const cleanPara = paragraph.replace(/[\s\d\p{P}]/gu, '');
-                    const arabicCount = (cleanPara.match(/[\u0600-\u06FF]/g) || []).length;
-                    const isArabicVerse = cleanPara.length > 0 && (arabicCount / cleanPara.length) > 0.45;
-                    let cleanText = paragraph;
-                    if (isArabicVerse && cleanText.startsWith('>')) cleanText = cleanText.replace(/^>\s*/, '');
-                    return <p key={idx} className={isArabicVerse ? 'arabic-text' : ''} style={{ marginBottom: '0.4rem', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{cleanText}</p>;
+                  {parseContentBlocks(displayContent).map((block, blockIdx) => {
+                    if (block.type === 'table') {
+                      return (
+                        <div 
+                          key={blockIdx} 
+                          style={{ 
+                            overflowX: 'auto', 
+                            margin: '0.75rem 0', 
+                            width: '100%', 
+                            maxWidth: '100%',
+                            borderRadius: '12px', 
+                            border: '1px solid var(--glass-border)', 
+                            background: 'rgba(25, 23, 21, 0.65)',
+                            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)'
+                          }}
+                        >
+                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                            <thead>
+                              <tr style={{ background: 'rgba(218, 119, 86, 0.14)', borderBottom: '1px solid var(--glass-border)' }}>
+                                {block.headers.map((h, hIdx) => (
+                                  <th 
+                                    key={hIdx} 
+                                    style={{ 
+                                      padding: '0.7rem 0.9rem', 
+                                      fontWeight: 600, 
+                                      color: 'var(--text-primary)',
+                                      whiteSpace: 'nowrap',
+                                      borderRight: hIdx < block.headers.length - 1 ? '1px solid rgba(225, 195, 170, 0.08)' : 'none'
+                                    }}
+                                  >
+                                    {h}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {block.rows.map((row, rIdx) => (
+                                <tr 
+                                  key={rIdx} 
+                                  style={{ 
+                                    background: rIdx % 2 === 1 ? 'rgba(255, 255, 255, 0.02)' : 'transparent',
+                                    borderBottom: rIdx < block.rows.length - 1 ? '1px solid rgba(225, 195, 170, 0.08)' : 'none' 
+                                  }}
+                                >
+                                  {row.map((cell, cIdx) => (
+                                    <td 
+                                      key={cIdx} 
+                                      style={{ 
+                                        padding: '0.65rem 0.9rem', 
+                                        color: 'var(--text-secondary)', 
+                                        lineHeight: 1.5,
+                                        verticalAlign: 'top',
+                                        borderRight: cIdx < row.length - 1 ? '1px solid rgba(225, 195, 170, 0.06)' : 'none'
+                                      }}
+                                    >
+                                      {cell}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    }
+
+                    return block.content.split('\n').map((paragraph, idx) => {
+                      if (!paragraph.trim()) return <br key={`${blockIdx}-${idx}`} />;
+                      const cleanPara = paragraph.replace(/[\s\d\p{P}]/gu, '');
+                      const arabicCount = (cleanPara.match(/[\u0600-\u06FF]/g) || []).length;
+                      const isArabicVerse = cleanPara.length > 0 && (arabicCount / cleanPara.length) > 0.45;
+                      let cleanText = paragraph;
+                      if (isArabicVerse && cleanText.startsWith('>')) cleanText = cleanText.replace(/^>\s*/, '');
+                      return (
+                        <p 
+                          key={`${blockIdx}-${idx}`} 
+                          className={isArabicVerse ? 'arabic-text' : ''} 
+                          style={{ marginBottom: '0.4rem', wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+                        >
+                          {cleanText}
+                        </p>
+                      );
+                    });
                   })}
                   {msg.citations && msg.citations.length > 0 && (
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>

@@ -174,7 +174,7 @@ CRITICAL FORMATTING MANDATE (STRICT NO MARKDOWN):
 6. Use double quotes " " for Quranic verses, Hadith quotes, or book titles (not asterisks).
 7. Use plain dashes - for bullet points (never asterisks).
 8. Use standard numbers 1. 2. 3. for numbered lists.
-9. DO NOT USE MARKDOWN TABLES OR PIPE SYMBOLS (|). Use clean bullet points (- item) or numbered lists instead.
+9. FOR TABLES AND COLUMNS: Use standard markdown tables (| Header 1 | Header 2 |) when presenting structured comparisons or column data.
 
 Examples:
 ❌ WRONG: **"Quran verse"** - Explanation:
