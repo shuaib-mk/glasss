@@ -935,23 +935,10 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                 <div style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
-                  gap: '0.65rem', 
+                  gap: '0.4rem', 
                   padding: '0.2rem 0',
                   color: 'var(--text-secondary)' 
                 }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    width: '24px', 
-                    height: '24px', 
-                    borderRadius: '50%', 
-                    background: 'var(--accent-soft)', 
-                    border: '1px solid rgba(218, 119, 86, 0.3)',
-                    flexShrink: 0
-                  }}>
-                    <Sparkles size={13} style={{ color: 'var(--accent-color)', animation: 'spin 3s linear infinite' }} />
-                  </div>
                   <span style={{ fontSize: '0.92rem', fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>Thinking</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '3.5px', marginTop: '2px' }}>
                     <span className="thinking-dot" style={{ animationDelay: '0s' }} />
