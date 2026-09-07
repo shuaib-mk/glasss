@@ -506,7 +506,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         style={{ 
           flex: 1, 
           overflowY: 'auto', 
-          overflowX: 'visible',
+          overflowX: 'hidden',
           padding: '0 1rem', 
           display: 'flex', 
           flexDirection: 'column', 
@@ -525,7 +525,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           margin: 'auto 0',
           paddingTop: '4.5rem', 
           paddingBottom: messages.length === 0 ? '140px' : '7.5rem',
-          overflowX: 'visible'
+          overflowX: 'hidden'
         }}>
           
           {messages.length === 0 ? (
@@ -930,7 +930,7 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
               </div>
             </div>
           ) : isAi ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '100%', overflowX: 'visible', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '100%', overflowX: 'hidden', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
               {!displayContent.trim() ? (
                 <div style={{ 
                   display: 'flex', 
@@ -966,19 +966,20 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35)'
                           }}
                         >
-                          <table style={{ width: 'max-content', minWidth: '100%', tableLayout: 'auto', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                          <table style={{ width: 'max-content', minWidth: '100%', tableLayout: 'auto', borderCollapse: 'separate', borderSpacing: 0, textAlign: 'left', fontSize: '0.88rem' }}>
                             <thead>
-                              <tr style={{ background: 'rgba(218, 119, 86, 0.14)', borderBottom: '1px solid var(--glass-border)' }}>
+                              <tr style={{ background: 'rgba(218, 119, 86, 0.14)' }}>
                                 {block.headers.map((h, hIdx) => (
                                   <th 
                                     key={hIdx} 
                                     style={{ 
-                                      padding: hIdx === block.headers.length - 1 ? '0.85rem 1.6rem 0.85rem 1.1rem' : '0.85rem 1.1rem', 
+                                      padding: hIdx === block.headers.length - 1 ? '0.85rem 1.75rem 0.85rem 1.1rem' : '0.85rem 1.1rem', 
                                       fontWeight: 600, 
                                       color: 'var(--text-primary)',
                                       whiteSpace: 'nowrap',
                                       wordBreak: 'normal',
                                       minWidth: '140px',
+                                      borderBottom: '1px solid var(--glass-border)',
                                       borderRight: hIdx < block.headers.length - 1 ? '1px solid rgba(225, 195, 170, 0.08)' : 'none'
                                     }}
                                   >
@@ -992,15 +993,14 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                                 <tr 
                                   key={rIdx} 
                                   style={{ 
-                                    background: rIdx % 2 === 1 ? 'rgba(255, 255, 255, 0.02)' : 'transparent',
-                                    borderBottom: rIdx < block.rows.length - 1 ? '1px solid rgba(225, 195, 170, 0.08)' : 'none' 
+                                    background: rIdx % 2 === 1 ? 'rgba(255, 255, 255, 0.02)' : 'transparent'
                                   }}
                                 >
                                   {row.map((cell, cIdx) => (
                                     <td 
                                       key={cIdx} 
                                       style={{ 
-                                        padding: cIdx === row.length - 1 ? '0.85rem 1.6rem 0.85rem 1.1rem' : '0.85rem 1.1rem', 
+                                        padding: cIdx === row.length - 1 ? '0.85rem 1.75rem 0.85rem 1.1rem' : '0.85rem 1.1rem', 
                                         color: 'var(--text-secondary)', 
                                         lineHeight: 1.6,
                                         verticalAlign: 'top',
@@ -1008,6 +1008,7 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                                         wordBreak: 'normal',
                                         overflowWrap: 'break-word',
                                         minWidth: '160px',
+                                        borderBottom: rIdx < block.rows.length - 1 ? '1px solid rgba(225, 195, 170, 0.08)' : 'none',
                                         borderRight: cIdx < row.length - 1 ? '1px solid rgba(225, 195, 170, 0.06)' : 'none'
                                       }}
                                     >
