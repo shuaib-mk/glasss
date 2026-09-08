@@ -24,7 +24,6 @@ export interface MessageData {
   id: string;
   role: 'user' | 'ai';
   text: string;
-  createdAt?: number;
   image?: string;
   citations?: Citation[];
 }

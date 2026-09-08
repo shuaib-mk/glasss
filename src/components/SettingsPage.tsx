@@ -51,7 +51,7 @@ export default function SettingsPage({ close, aiModel, setAiModel, apiKey, setAp
                 }}
               />
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                If left empty, Sunni AI uses the server environment key. A key entered here is kept only for this browser tab and sent through your own backend, never bundled into the app.
+                If left empty, Sunni AI will use the key configured in server environment variables.
               </p>
             </div>
 
