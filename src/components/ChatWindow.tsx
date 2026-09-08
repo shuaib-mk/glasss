@@ -104,8 +104,8 @@ class DirectThinkFilter {
   }
 
   flush(): string {
-    if (!this.inThink && this.buffer) {
-      const out = this.buffer;
+    if (this.buffer) {
+      const out = this.buffer.replace(/<think>/g, '').replace(/<\/think>/g, '');
       this.buffer = '';
       return out;
     }
@@ -211,7 +211,7 @@ CRITICAL LANGUAGE MANDATE:
           model: targetModel,
           messages: groqMessages,
           temperature: adminConfig?.temperature ?? 0.6,
-          max_tokens: adminConfig?.maxTokens ?? 600,
+          max_tokens: adminConfig?.maxTokens ?? 2048,
           frequency_penalty: 0.3,
           presence_penalty: 0.2,
           stream: true

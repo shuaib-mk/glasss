@@ -191,8 +191,8 @@ class ThinkTagFilter {
   }
 
   flush() {
-    if (!this.inThink && this.buffer) {
-      const out = this.buffer;
+    if (this.buffer) {
+      const out = this.buffer.replace(/<think>/g, '').replace(/<\/think>/g, '');
       this.buffer = '';
       return out;
     }
@@ -201,18 +201,18 @@ class ThinkTagFilter {
 }
 
 const VALID_MODELS = [
-  'qwen/qwen3.8-27b',
+  'openai/gpt-oss-20b',
   'qwen/qwen3.6-27b',
   'openai/gpt-oss-120b',
-  'openai/gpt-oss-20b',
-  'allam-2-7b'
+  'allam-2-7b',
+  'qwen/qwen3.8-27b'
 ];
 
 // POST /api/chat - Stream AI chat responses
 app.post('/api/chat', async (req, res) => {
-  let { messages = [], model = 'qwen/qwen3.8-27b' } = req.body;
+  let { messages = [], model = 'openai/gpt-oss-20b' } = req.body;
   if (!VALID_MODELS.includes(model)) {
-    model = 'qwen/qwen3.8-27b';
+    model = 'openai/gpt-oss-20b';
   }
 
   // Set SSE Headers
@@ -311,7 +311,7 @@ CRITICAL LANGUAGE MANDATE:
           model: targetModel,
           messages: groqMessages,
           temperature: 0.6,
-          max_tokens: 600,
+          max_tokens: 2048,
           frequency_penalty: 0.3,
           presence_penalty: 0.2,
           stream: true

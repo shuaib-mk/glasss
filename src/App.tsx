@@ -90,9 +90,11 @@ function App() {
 
   const [aiModel, setAiModel] = useState(() => {
     const saved = localStorage.getItem('islamic-chatbot-model');
-    // Ensure the saved model is one of the available models, otherwise fallback
+    if (!saved || saved === 'qwen/qwen3.8-27b') {
+      return 'openai/gpt-oss-20b';
+    }
     const isValid = AVAILABLE_MODELS.some(m => m.id === saved);
-    return isValid && saved ? saved : 'openai/gpt-oss-20b';
+    return isValid ? saved : 'openai/gpt-oss-20b';
   });
 
   useEffect(() => {
