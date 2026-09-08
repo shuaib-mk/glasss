@@ -42,11 +42,11 @@ export interface AIModel {
 }
 
 export const AVAILABLE_MODELS: AIModel[] = [
-  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B', limit: 'Ultra Fast & High Accuracy' },
+  { id: 'openai/gpt-oss-20b', name: 'GPT OSS 20B', limit: 'Ultra Fast & High Quota' },
   { id: 'qwen/qwen3.6-27b', name: 'Qwen 3.6 27B', limit: 'High Accuracy Reasoning' },
-  { id: 'openai/gpt-oss-20b', name: 'GPT OSS 20B', limit: 'Fast & Versatile' },
+  { id: 'allam-2-7b', name: 'Allam 2 7B', limit: 'Islamic & Arabic Specialized' },
   { id: 'openai/gpt-oss-120b', name: 'GPT OSS 120B', limit: 'Large Capability' },
-  { id: 'allam-2-7b', name: 'Allam 2 7B', limit: 'Arabic/English Specialized' }
+  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B', limit: 'Fast Preview' }
 ];
 
 export interface SystemLog {

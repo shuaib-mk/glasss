@@ -192,7 +192,7 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
       localStorage.setItem('sunni-admin-auth', 'true');
       setAuthError('');
     } else {
-      setAuthError('Invalid passcode. Default passcode is: q04ti');
+      setAuthError('Invalid administrator passcode.');
     }
   };
 
@@ -254,7 +254,7 @@ export default function AdminPanel({ close, glassSettings, aiModel, setAiModel, 
             <form onSubmit={handleLogin} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <input 
                 type="password"
-                placeholder="Passcode (Default: q04ti)"
+                placeholder="Enter Passcode"
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
                 style={{

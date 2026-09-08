@@ -188,26 +188,50 @@ CRITICAL LANGUAGE MANDATE:
     })
   ];
 
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${groqKey}`
-    },
-    body: JSON.stringify({
-      model: model || adminConfig?.defaultModel || 'qwen/qwen3.8-27b',
-      messages: groqMessages,
-      temperature: adminConfig?.temperature ?? 0.6,
-      max_tokens: adminConfig?.maxTokens ?? 1000,
-      frequency_penalty: 0.3,
-      presence_penalty: 0.2,
-      stream: true
-    })
-  });
+  const candidateModels = Array.from(new Set([
+    model || adminConfig?.defaultModel || 'openai/gpt-oss-20b',
+    'openai/gpt-oss-20b',
+    'qwen/qwen3.6-27b',
+    'allam-2-7b',
+    'openai/gpt-oss-120b'
+  ])).filter(Boolean);
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(`Groq API Error (${res.status}): ${errText || res.statusText}`);
+  let res: Response | null = null;
+  let lastErrText = '';
+
+  for (const targetModel of candidateModels) {
+    try {
+      const attemptRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${groqKey}`
+        },
+        body: JSON.stringify({
+          model: targetModel,
+          messages: groqMessages,
+          temperature: adminConfig?.temperature ?? 0.6,
+          max_tokens: adminConfig?.maxTokens ?? 600,
+          frequency_penalty: 0.3,
+          presence_penalty: 0.2,
+          stream: true
+        })
+      });
+
+      if (attemptRes.ok) {
+        res = attemptRes;
+        break;
+      } else {
+        lastErrText = await attemptRes.text().catch(() => '');
+        console.warn(`Groq model ${targetModel} returned status ${attemptRes.status}. Trying fallback model...`);
+      }
+    } catch (e: any) {
+      lastErrText = e.message || '';
+    }
+  }
+
+  if (!res) {
+    throw new Error(`Groq API Error: ${lastErrText || 'All candidate model attempts failed.'}`);
   }
 
   if (!res.body) throw new Error('ReadableStream not supported in this browser.');

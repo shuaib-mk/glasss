@@ -294,16 +294,38 @@ CRITICAL LANGUAGE MANDATE:
       })
     ];
 
-    // Call Groq API with streaming
-    const stream = await groq.chat.completions.create({
-      model: model || 'qwen/qwen3.8-27b',
-      messages: groqMessages,
-      temperature: 0.6,
-      max_tokens: 1000,
-      frequency_penalty: 0.3,
-      presence_penalty: 0.2,
-      stream: true
-    });
+    const candidateModels = Array.from(new Set([
+      model || 'openai/gpt-oss-20b',
+      'openai/gpt-oss-20b',
+      'qwen/qwen3.6-27b',
+      'allam-2-7b',
+      'openai/gpt-oss-120b'
+    ])).filter(Boolean);
+
+    let stream = null;
+    let lastError = null;
+
+    for (const targetModel of candidateModels) {
+      try {
+        stream = await groq.chat.completions.create({
+          model: targetModel,
+          messages: groqMessages,
+          temperature: 0.6,
+          max_tokens: 600,
+          frequency_penalty: 0.3,
+          presence_penalty: 0.2,
+          stream: true
+        });
+        break;
+      } catch (err) {
+        console.warn(`Model ${targetModel} call failed (${err.status || err.message}). Attempting fallback model...`);
+        lastError = err;
+      }
+    }
+
+    if (!stream) {
+      throw lastError || new Error('All candidate model attempts failed.');
+    }
 
     const thinkFilter = new ThinkTagFilter();
 
