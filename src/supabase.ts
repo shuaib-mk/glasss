@@ -40,7 +40,8 @@ export function purgeSessionOnUnload(targetSessionId?: string) {
       headers: {
         'apikey': supabaseAnonKey,
         'Authorization': `Bearer ${supabaseAnonKey}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
       },
       keepalive: true
     });
@@ -50,7 +51,8 @@ export function purgeSessionOnUnload(targetSessionId?: string) {
       headers: {
         'apikey': supabaseAnonKey,
         'Authorization': `Bearer ${supabaseAnonKey}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
       },
       keepalive: true
     });

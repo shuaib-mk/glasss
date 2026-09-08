@@ -241,12 +241,14 @@ CRITICAL LANGUAGE MANDATE:
   let done = false;
   const thinkFilter = new DirectThinkFilter();
 
+  let sseLineBuffer = '';
   while (!done) {
     const { value, done: readerDone } = await reader.read();
     done = readerDone;
     if (value) {
-      const chunkStr = decoder.decode(value, { stream: true });
-      const lines = chunkStr.split('\n');
+      sseLineBuffer += decoder.decode(value, { stream: true });
+      const lines = sseLineBuffer.split('\n');
+      sseLineBuffer = lines.pop() || '';
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const dataStr = line.slice(6).trim();
@@ -418,16 +420,18 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           const reader = response.body.getReader();
           const decoder = new TextDecoder('utf-8');
           
+          let sseLineBuffer = '';
           let done = false;
           while (!done) {
             const { value, done: readerDone } = await reader.read();
             done = readerDone;
             if (value) {
-              const chunkStr = decoder.decode(value, { stream: true });
-              const lines = chunkStr.split('\n');
+              sseLineBuffer += decoder.decode(value, { stream: true });
+              const lines = sseLineBuffer.split('\n');
+              sseLineBuffer = lines.pop() || '';
               for (const line of lines) {
                 if (line.startsWith('data: ')) {
-                  const dataStr = line.slice(6);
+                  const dataStr = line.slice(6).trim();
                   if (!dataStr) continue;
                   try {
                     const data = JSON.parse(dataStr);
@@ -922,8 +926,9 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         style={{
           position: 'absolute',
           top: '1rem', bottom: '1rem',
-          right: viewingDocument ? '1rem' : '-420px',
+          right: viewingDocument ? '1rem' : '-100vw',
           width: '380px',
+          maxWidth: 'calc(100vw - 2rem)',
           zIndex: 45,
           borderRadius: '20px',
           display: 'flex', flexDirection: 'column',
@@ -942,7 +947,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         <div style={{ flex: 1, background: '#ffffff' }}>
           {viewingDocument && (
             <iframe 
-              src={`http://localhost:3001/knowledge_base/${viewingDocument}`}
+              src={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/knowledge_base/${encodeURIComponent(viewingDocument)}`}
               style={{ width: '100%', height: '100%', border: 'none' }}
               title="Document Viewer"
             />
