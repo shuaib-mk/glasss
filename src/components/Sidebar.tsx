@@ -1,5 +1,5 @@
 import { Plus, MessageSquare, Settings, Trash2, FolderOpen, UploadCloud, Loader2, BookOpen } from 'lucide-react';
-import { useState, useEffect, useRef, type CSSProperties } from 'react';
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react';
 import type { Chat, GlassSettings } from '../types';
 import GlassSurface from './GlassSurface';
 import { deleteChatFromSupabase } from '../supabase';
@@ -14,6 +14,11 @@ interface SidebarProps {
   glassSettings: GlassSettings;
   setGlassSettings: (s: GlassSettings | ((prev: GlassSettings) => GlassSettings)) => void;
   setIsSettingsOpen: (open: boolean) => void;
+}
+
+interface KnowledgeDocument {
+  filename: string;
+  size: number;
 }
 
 // Group chats chronologically like Claude AI
@@ -49,43 +54,53 @@ function groupChatsByDate(chats: Chat[]) {
 
 export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentChatId, setCurrentChatId, glassSettings, setIsSettingsOpen }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<'chats'|'knowledge'>('chats');
-  const [documents, setDocuments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const apiBaseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/documents`);
+      const res = await fetch(`${apiBaseUrl}/api/documents`);
+      if (!res.ok) throw new Error(`The server returned status ${res.status}.`);
       const data = await res.json();
-      setDocuments(data);
+      setDocuments(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error('Failed to fetch documents', e);
     }
-  };
+  }, [apiBaseUrl]);
 
   useEffect(() => {
     if (activeTab === 'knowledge') {
       fetchDocuments();
     }
-  }, [activeTab]);
+  }, [activeTab, fetchDocuments]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Please choose a document smaller than 10 MB.');
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
 
     setIsUploading(true);
     try {
-      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/documents`, {
+      const response = await fetch(`${apiBaseUrl}/api/documents`, {
         method: 'POST',
         body: formData
       });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || `The server returned status ${response.status}.`);
+      }
       await fetchDocuments();
     } catch (error) {
       console.error('Upload failed', error);
-      alert('Failed to upload document');
+      alert(error instanceof Error ? error.message : 'Failed to upload document.');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -258,7 +273,7 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
               ) : (
                 /* Knowledge Base Tab */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <input type="file" accept=".pdf,.txt,.md" ref={fileInputRef} onChange={handleFileUpload} style={{ display: 'none' }} />
+                  <input type="file" accept=".pdf,.txt,.md,.json" ref={fileInputRef} onChange={handleFileUpload} style={{ display: 'none' }} />
                   <button 
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
@@ -270,7 +285,7 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
                   >
                     {isUploading ? <Loader2 size={20} className="animate-spin" color="var(--accent-color)" /> : <UploadCloud size={20} color="var(--accent-color)" />}
                     <span>{isUploading ? 'Uploading & Indexing...' : 'Upload Knowledge File'}</span>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>PDF, TXT, MD supported</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>PDF, TXT, MD, JSON · max 10 MB</span>
                   </button>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>

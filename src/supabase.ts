@@ -1,8 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Chat, MessageData } from './types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nezhorrdujbpermsimfx.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lemhvcnJkdWpicGVybXNpbWZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3MTA2MjgsImV4cCI6MjEwNDI4NjYyOH0.kCmgzK1lGQxjzNkEB9CRKBcDY4iij_RBHO6-zaP519A';
+const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+const configuredSupabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+export const isSupabaseConfigured = Boolean(configuredSupabaseUrl && configuredSupabaseAnonKey);
+const supabaseUrl = configuredSupabaseUrl || 'https://example.invalid';
+const supabaseAnonKey = configuredSupabaseAnonKey || 'supabase-disabled';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -10,89 +13,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export const getSessionId = (): string => {
   let sessionId = localStorage.getItem('sunni-session-id');
   if (!sessionId) {
-    sessionId = 'session_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+    sessionId = `session_${crypto.randomUUID()}`;
     localStorage.setItem('sunni-session-id', sessionId);
   }
   return sessionId;
 };
 
-// Generate a fresh session ID for new browser sessions
-export const renewSessionId = (): string => {
-  const newSessionId = 'session_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
-  localStorage.setItem('sunni-session-id', newSessionId);
-  return newSessionId;
-};
-
-/**
- * Automatically delete session and all messages from Supabase on tab close, reload, or navigate away.
- * Uses fetch with keepalive: true for 100% reliable execution during page unload/hide events.
- */
-export function purgeSessionOnUnload(targetSessionId?: string) {
-  const sessionId = targetSessionId || localStorage.getItem('sunni-session-id');
-  if (!sessionId) return;
-
-  const restEndpointChats = `${supabaseUrl}/rest/v1/chats?session_id=eq.${encodeURIComponent(sessionId)}`;
-  const restEndpointMessages = `${supabaseUrl}/rest/v1/messages?session_id=eq.${encodeURIComponent(sessionId)}`;
-  
-  try {
-    fetch(restEndpointChats, {
-      method: 'DELETE',
-      headers: {
-        'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-        'Content-Type': 'application/json'
-      },
-      keepalive: true
-    });
-
-    fetch(restEndpointMessages, {
-      method: 'DELETE',
-      headers: {
-        'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-        'Content-Type': 'application/json'
-      },
-      keepalive: true
-    });
-  } catch (err) {
-    console.warn('Purge session on unload error:', err);
-  }
-
-  // Clear local browser cache
-  try {
-    localStorage.removeItem('islamic-chatbot-history');
-    localStorage.removeItem('sunni-session-id');
-  } catch (e) {}
-}
-
-/**
- * Universal Master Purge: Wipes ALL database records from Supabase (chats, messages, system_logs)
- * to reset storage strictly to 0 MB.
- */
-export async function universalMasterPurgeSupabase(): Promise<{ success: boolean; message: string }> {
-  try {
-    const { error: msgErr } = await supabase.from('messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    const { error: chatErr } = await supabase.from('chats').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    await supabase.from('system_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-
-    localStorage.removeItem('islamic-chatbot-history');
-    localStorage.removeItem('sunni-session-id');
-    localStorage.removeItem('sunni-admin-logs');
-
-    if (msgErr || chatErr) {
-      return { success: false, message: `Purge warning: ${msgErr?.message || chatErr?.message}` };
-    }
-
-    return { success: true, message: 'Supabase storage reset to 0 MB successfully across all tables!' };
-  } catch (e: any) {
-    return { success: false, message: `Master purge failed: ${e.message}` };
-  }
-}
-
 /**
  * Fetch all chats for the current session from Supabase
  */
 export async function fetchChatsFromSupabase(): Promise<Chat[] | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const sessionId = getSessionId();
     const { data: chatsData, error: chatsErr } = await supabase
@@ -130,6 +61,7 @@ export async function fetchChatsFromSupabase(): Promise<Chat[] | null> {
         id: m.id,
         role: m.role as 'user' | 'ai',
         text: m.text,
+        createdAt: new Date(m.created_at).getTime(),
         image: m.image || undefined,
         citations: m.citations ? JSON.parse(typeof m.citations === 'string' ? m.citations : JSON.stringify(m.citations)) : undefined
       });
@@ -151,6 +83,7 @@ export async function fetchChatsFromSupabase(): Promise<Chat[] | null> {
  * Save or update a chat in Supabase
  */
 export async function saveChatToSupabase(chat: Chat): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const sessionId = getSessionId();
     
@@ -174,11 +107,13 @@ export async function saveChatToSupabase(chat: Chat): Promise<boolean> {
       const formattedMessages = chat.messages.map(m => ({
         id: m.id,
         chat_id: chat.id,
+        session_id: sessionId,
         role: m.role,
         text: m.text,
-        image: m.image || null,
+        // OCR source images can exceed database and browser storage limits.
+        image: null,
         citations: m.citations ? JSON.stringify(m.citations) : null,
-        created_at: new Date().toISOString()
+        created_at: new Date(m.createdAt || chat.updatedAt).toISOString()
       }));
 
       const { error: msgErr } = await supabase
@@ -187,6 +122,7 @@ export async function saveChatToSupabase(chat: Chat): Promise<boolean> {
 
       if (msgErr) {
         console.warn('Supabase upsert messages error:', msgErr.message);
+        return false;
       }
     }
 
@@ -201,7 +137,17 @@ export async function saveChatToSupabase(chat: Chat): Promise<boolean> {
  * Delete a single chat from Supabase
  */
 export async function deleteChatFromSupabase(chatId: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
+    const { error: messageError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('chat_id', chatId);
+    if (messageError) {
+      console.warn('Supabase delete messages error:', messageError.message);
+      return false;
+    }
+
     const { error } = await supabase
       .from('chats')
       .delete()
@@ -222,8 +168,18 @@ export async function deleteChatFromSupabase(chatId: string): Promise<boolean> {
  * Delete all chats for current session from Supabase
  */
 export async function clearAllChatsFromSupabase(): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const sessionId = getSessionId();
+    const { error: messageError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('session_id', sessionId);
+    if (messageError) {
+      console.warn('Supabase clear messages error:', messageError.message);
+      return false;
+    }
+
     const { error } = await supabase
       .from('chats')
       .delete()
@@ -252,6 +208,7 @@ export async function logRequestToSupabase(log: {
   fullPrompt?: string;
   fullResponse?: string;
 }) {
+  if (!isSupabaseConfigured || import.meta.env.VITE_ENABLE_REMOTE_TELEMETRY !== 'true') return;
   try {
     const sessionId = getSessionId();
     await supabase.from('system_logs').insert({
@@ -273,6 +230,7 @@ export async function logRequestToSupabase(log: {
  * Fetch latest 100 live request logs across all users from Supabase
  */
 export async function fetchSystemLogsFromSupabase(): Promise<any[]> {
+  if (!isSupabaseConfigured) return [];
   try {
     const { data, error } = await supabase
       .from('system_logs')
@@ -285,19 +243,7 @@ export async function fetchSystemLogsFromSupabase(): Promise<any[]> {
       return [];
     }
     return data || [];
-  } catch (e) {
+  } catch {
     return [];
-  }
-}
-
-/**
- * Clear all system logs from Supabase
- */
-export async function clearSystemLogsFromSupabase(): Promise<boolean> {
-  try {
-    await supabase.from('system_logs').delete().neq('session_id', 'none');
-    return true;
-  } catch (e) {
-    return false;
   }
 }
