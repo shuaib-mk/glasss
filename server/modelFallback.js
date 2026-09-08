@@ -126,3 +126,12 @@ export async function streamChatWithFallback({
 export function clearModelCooldowns() {
   modelCooldowns.clear();
 }
+
+export function getActiveModelCooldowns(now = Date.now()) {
+  return [...modelCooldowns.entries()]
+    .filter(([, cooldownUntil]) => cooldownUntil > now)
+    .map(([model, cooldownUntil]) => ({
+      model,
+      retryInSeconds: Math.max(1, Math.ceil((cooldownUntil - now) / 1_000))
+    }));
+}

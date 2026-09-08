@@ -170,27 +170,12 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
     let accumulatedResponse = '';
 
     try {
-      let settings: { temperature?: number; maxTokens?: number; systemPrompt?: string } | undefined;
-      try {
-        const savedSettings = localStorage.getItem('sunni-admin-config');
-        if (savedSettings) {
-          const parsed = JSON.parse(savedSettings);
-          settings = {
-            temperature: parsed.temperature,
-            maxTokens: parsed.maxTokens,
-            systemPrompt: parsed.systemPrompt
-          };
-        }
-      } catch {
-        // Ignore malformed settings and use safe server defaults.
-      }
-
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ messages: payloadMessages, model: aiModel, settings })
+        body: JSON.stringify({ messages: payloadMessages, model: aiModel })
       });
 
       if (!response.ok) {

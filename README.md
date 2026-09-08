@@ -14,7 +14,9 @@ Sunni AI is a React and Express knowledge assistant backed by Groq. This version
 - Adds at most one 700-character knowledge excerpt, without embeddings or a paid RAG pipeline.
 - Caches up to 100 identical completed requests per running server instance.
 - Validates request sizes, models, upload types, upload sizes, and filenames.
-- Removes browser-accessible global database purge controls and default admin passcodes.
+- Adds server-authenticated admin controls with an HttpOnly signed session cookie.
+- Stores admin settings in a private Supabase row and encrypts admin-managed Groq keys before storage.
+- Supports server-side creator identity, model controls, provider-key rotation, health checks, and runtime diagnostics.
 - Adds deployable Vercel API entry points for chat and document routes.
 
 ## Run locally
@@ -30,16 +32,25 @@ The Vite frontend proxies `/api` requests to the Express server on port 3001.
 
 ## Environment variables
 
-Required:
+Required for chat:
 
 - `GROQ_API_KEY`: server-side Groq credential.
+
+Required for the persistent admin panel:
+
+- `ADMIN_PASSWORD`: server-only administrator password.
+- `ADMIN_SESSION_SECRET`: long random secret used to sign admin sessions.
+- `CONFIG_ENCRYPTION_KEY`: a different long random secret used to encrypt stored provider keys.
+- `SUPABASE_URL`: the server-side Supabase project URL.
+- `SUPABASE_SERVICE_ROLE_KEY`: server-only key used to access the private configuration row.
+
+Run `supabase/admin_config.sql` once before enabling the admin panel.
 
 Optional:
 
 - `PORT`: local backend port; defaults to `3001`.
 - `ALLOWED_ORIGINS`: comma-separated origins when the frontend and backend are hosted separately.
-- `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`: optional admin database visibility only. Normal chats do not depend on Supabase.
-- `VITE_ADMIN_PASSCODE`: enables the local admin configuration screen. This is a convenience gate compiled into frontend code, not secure production authentication.
+- `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`: legacy browser database helpers only. Normal chats and the secure admin panel do not require them.
 
 Never commit `.env`. Rotate any provider key that was previously placed in browser source or shared in an archive.
 
@@ -53,8 +64,8 @@ npm audit --omit=dev
 
 ## Production notes
 
-The included `api` entry points allow Vercel to run the Express routes while Vite serves the frontend. Set `GROQ_API_KEY` in the hosting provider's server environment.
+The included `api` entry points allow Vercel to run the Express routes while Vite serves the frontend. Keep `GROQ_API_KEY` as the emergency environment backup even after activating an encrypted key through the admin panel.
 
 Local knowledge uploads are stored on disk and use a small keyword match rather than a token-heavy vector pipeline. Serverless filesystems are not durable, so hosted uploads deliberately return a clear error instead of pretending to persist. Bundled or local documents can still be used without a paid service.
 
-The browser always calls the same-origin `/api` functions, both locally through Vite's proxy and on Vercel. Set only the server-side `GROQ_API_KEY` in Vercel. The free Groq quota is still a hard provider limit: no application code can guarantee unlimited simultaneous public usage on one free key.
+The browser always calls the same-origin `/api` functions, both locally through Vite's proxy and on Vercel. Provider keys and admin secrets must remain server-side. The free Groq quota is still a hard provider limit: model fallback and key recovery reduce interruptions but cannot guarantee unlimited simultaneous public usage.
