@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Menu, Send, BookOpen, ExternalLink, Sparkles, Camera, Loader2, ChevronDown, BookMarked, ShieldCheck, Compass, FileSearch, X, Plus, AlertCircle, Copy, Check } from 'lucide-react';
 import type { Chat, MessageData, Citation, GlassSettings } from '../types';
 import { AVAILABLE_MODELS } from '../types';
@@ -51,47 +51,51 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
   const [scannedImage, setScannedImage] = useState<string | null>(null);
   const [viewingDocument, setViewingDocument] = useState<string | null>(null);
   const [showModelPicker, setShowModelPicker] = useState(false);
+  const [promptToAnchor, setPromptToAnchor] = useState<string | null>(null);
+  const [bottomSpacerHeight, setBottomSpacerHeight] = useState(320);
   
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const prevMessageCountRef = useRef<number>(0);
-  const latestUserMsgRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef(new Map<string, HTMLDivElement>());
 
   const messages = currentChat ? currentChat.messages : [];
   const selectedModelObj = AVAILABLE_MODELS.find(m => m.id === aiModel) || AVAILABLE_MODELS[0] || { name: 'Qwen 3.6 27B', id: 'qwen/qwen3.6-27b', limit: 'High Accuracy' };
 
-  // Explicit function to smoothly scroll to top of new user prompt & AI reply below the fixed top header
-  const scrollToTopOfNewMessage = () => {
-    if (!latestUserMsgRef.current || !scrollContainerRef.current) return;
+  useLayoutEffect(() => {
     const container = scrollContainerRef.current;
-    const target = latestUserMsgRef.current;
+    if (!container) return;
 
-    // Account for top fixed header offset (~68px gap) so user prompt is 100% visible
-    const headerOffset = 68;
-    const elementPosition = target.getBoundingClientRect().top;
-    const containerPosition = container.getBoundingClientRect().top;
-    const offsetPosition = elementPosition - containerPosition + container.scrollTop - headerOffset;
+    const updateSpacerHeight = () => {
+      // Reserve one answer viewport beneath the latest turn. This lets a new
+      // prompt move below the fixed header even before its answer has streamed.
+      setBottomSpacerHeight(Math.max(240, container.clientHeight - 150));
+    };
 
-    container.scrollTo({
-      top: Math.max(0, offsetPosition),
-      behavior: 'smooth'
+    updateSpacerHeight();
+    const observer = new ResizeObserver(updateSpacerHeight);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!promptToAnchor) return;
+    const frame = requestAnimationFrame(() => {
+      const container = scrollContainerRef.current;
+      const target = messageRefs.current.get(promptToAnchor);
+      if (!container || !target) return;
+
+      const targetTop = container.scrollTop
+        + target.getBoundingClientRect().top
+        - container.getBoundingClientRect().top
+        - 72;
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      container.scrollTo({ top: Math.max(0, targetTop), behavior: reduceMotion ? 'auto' : 'smooth' });
+      setPromptToAnchor(current => current === promptToAnchor ? null : current);
     });
-  };
-
-  // Call scrollToTopOfNewMessage when AI starts streaming (new prompt pair added)
-  useEffect(() => {
-    const currentCount = messages.length;
-    const prevCount = prevMessageCountRef.current;
-    prevMessageCountRef.current = currentCount;
-
-    if (currentCount > prevCount && currentCount > 0) {
-      setTimeout(() => {
-        scrollToTopOfNewMessage();
-      }, 40);
-    }
-  }, [messages.length]);
+    return () => cancelAnimationFrame(frame);
+  }, [promptToAnchor, messages.length]);
 
   useEffect(() => {
     // Only auto-focus on desktop devices to prevent mobile virtual keyboard popups
@@ -131,6 +135,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
     const createdAt = Date.now();
     const userMessageId = crypto.randomUUID();
     const aiMessageId = crypto.randomUUID();
+    setPromptToAnchor(userMessageId);
 
     if (isNewChat) {
       chatIdToUse = crypto.randomUUID();
@@ -160,8 +165,6 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         ? { ...c, messages: [...c.messages, { id: aiMessageId, role: 'ai', text: '', createdAt: createdAt + 1, citations: [] }], updatedAt: createdAt }
         : c
     ));
-
-    setTimeout(() => scrollToTopOfNewMessage(), 50);
 
     const startTime = Date.now();
     let accumulatedResponse = '';
@@ -366,7 +369,8 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           alignItems: 'center',
           width: '100%',
           maxWidth: '100vw',
-          WebkitOverflowScrolling: 'touch'
+          WebkitOverflowScrolling: 'touch',
+          overflowAnchor: 'none'
         }}
       >
         <div style={{ 
@@ -378,7 +382,9 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           margin: 'auto 0',
           paddingTop: '4.5rem', 
           paddingBottom: messages.length === 0 ? '140px' : '7.5rem',
-          overflowX: 'hidden'
+          // The outer chat viewport already clips horizontal overflow. Keeping
+          // this column visible prevents it from becoming a second scroll area.
+          overflow: 'visible'
         }}>
           
           {messages.length === 0 ? (
@@ -445,29 +451,21 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           ) : (
             /* Messages List */
             <>
-              {(() => {
-                let lastUserIdx = -1;
-                for (let i = messages.length - 1; i >= 0; i--) {
-                  if (messages[i].role === 'user') {
-                    lastUserIdx = i;
-                    break;
-                  }
-                }
-
-                return messages.map((msg, idx) => {
-                  const isLatestUserMessage = idx === lastUserIdx;
-                  return (
+              {messages.map(msg => {
+                return (
                     <div 
                       key={msg.id} 
-                      ref={isLatestUserMessage ? latestUserMsgRef : undefined}
+                      ref={node => {
+                        if (node) messageRefs.current.set(msg.id, node);
+                        else messageRefs.current.delete(msg.id);
+                      }}
                       className="message-wrapper"
                       style={{ width: '100%', maxWidth: '100%', overflow: 'visible' }}
                     >
                       <MessageBubble msg={msg} setViewingDocument={setViewingDocument} />
                     </div>
-                  );
-                });
-              })()}
+                );
+              })}
               {isLoading && messages[messages.length - 1]?.role === 'user' && (
                 <div className="animate-pulse" style={{ color: 'var(--text-muted)', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.5rem', paddingLeft: '0.5rem' }}>
                   <div style={{ width: '14px', height: '14px', border: '2px solid var(--accent-color)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
@@ -475,6 +473,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
                 </div>
               )}
               <div ref={endRef} />
+              <div aria-hidden="true" style={{ height: `${bottomSpacerHeight}px`, flexShrink: 0 }} />
             </>
           )}
         </div>

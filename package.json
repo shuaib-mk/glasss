@@ -9,6 +9,7 @@
     "client": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "node --test --experimental-test-isolation=none server/*.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

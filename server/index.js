@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import os from 'os';
 import { fileURLToPath } from 'url';
 import Groq from 'groq-sdk';
+import { streamChatWithFallback } from './modelFallback.js';
 
 dotenv.config();
 
@@ -315,22 +316,16 @@ app.post('/api/chat', async (req, res) => {
       return;
     }
 
-    const stream = await groq.chat.completions.create({
-      model,
-      messages: groqMessages,
-      temperature,
-      max_tokens: maxTokens,
-      stream: true
+    const { completedResponse } = await streamChatWithFallback({
+      groq,
+      preferredModel: model,
+      request: {
+        messages: groqMessages,
+        temperature,
+        max_tokens: maxTokens
+      },
+      onChunk: content => sendEvent('chunk', content)
     });
-
-    let completedResponse = '';
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || '';
-      if (content) {
-        completedResponse += content;
-        sendEvent('chunk', content);
-      }
-    }
     if (completedResponse) {
       if (responseCache.size >= MAX_CACHED_RESPONSES) {
         responseCache.delete(responseCache.keys().next().value);
@@ -343,7 +338,7 @@ app.post('/api/chat', async (req, res) => {
     const message = error?.status === 401
       ? 'The Groq API key is invalid or expired.'
       : error?.status === 429
-        ? 'The Groq rate limit was reached. Please wait and try again.'
+        ? error.message || 'Every available model is temporarily busy. Please wait and try again.'
         : error?.message || 'The AI service could not complete this request.';
     sendEvent('error', message);
   } finally {
