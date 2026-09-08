@@ -61,7 +61,6 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
 
   const messages = currentChat ? currentChat.messages : [];
   const selectedModelObj = AVAILABLE_MODELS.find(m => m.id === aiModel) || AVAILABLE_MODELS[0] || { name: 'Qwen 3.6 27B', id: 'qwen/qwen3.6-27b', limit: 'High Accuracy' };
-  const apiBaseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
   // Explicit function to smoothly scroll to top of new user prompt & AI reply below the fixed top header
   const scrollToTopOfNewMessage = () => {
@@ -183,8 +182,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         // Ignore malformed settings and use safe server defaults.
       }
 
-      const backendUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-      const response = await fetch(`${backendUrl}/api/chat`, {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -697,7 +695,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         <div style={{ flex: 1, background: '#ffffff' }}>
           {viewingDocument && (
             <iframe 
-              src={`${apiBaseUrl}/api/document?filename=${encodeURIComponent(viewingDocument)}`}
+              src={`/api/document?filename=${encodeURIComponent(viewingDocument)}`}
               style={{ width: '100%', height: '100%', border: 'none' }}
               title="Document Viewer"
             />

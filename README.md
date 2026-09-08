@@ -37,7 +37,6 @@ Required:
 Optional:
 
 - `PORT`: local backend port; defaults to `3001`.
-- `VITE_API_URL`: a separate backend origin. Leave empty for same-origin production and local Vite proxying.
 - `ALLOWED_ORIGINS`: comma-separated origins when the frontend and backend are hosted separately.
 - `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`: optional admin database visibility only. Normal chats do not depend on Supabase.
 - `VITE_ADMIN_PASSCODE`: enables the local admin configuration screen. This is a convenience gate compiled into frontend code, not secure production authentication.
@@ -58,4 +57,4 @@ The included `api` entry points allow Vercel to run the Express routes while Vit
 
 Local knowledge uploads are stored on disk and use a small keyword match rather than a token-heavy vector pipeline. Serverless filesystems are not durable, so hosted uploads deliberately return a clear error instead of pretending to persist. Bundled or local documents can still be used without a paid service.
 
-For GitHub/Vercel deployment, do not set `VITE_API_URL` to `localhost`; leave it empty so the browser calls the same-origin `/api` functions. Set only the server-side `GROQ_API_KEY` in Vercel. The free Groq quota is still a hard provider limit: no application code can guarantee unlimited simultaneous public usage on one free key.
+The browser always calls the same-origin `/api` functions, both locally through Vite's proxy and on Vercel. Set only the server-side `GROQ_API_KEY` in Vercel. The free Groq quota is still a hard provider limit: no application code can guarantee unlimited simultaneous public usage on one free key.

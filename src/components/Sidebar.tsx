@@ -56,18 +56,16 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const apiBaseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-
   const fetchDocuments = useCallback(async () => {
     try {
-      const res = await fetch(`${apiBaseUrl}/api/documents`);
+      const res = await fetch('/api/documents');
       if (!res.ok) throw new Error(`The server returned status ${res.status}.`);
       const data = await res.json();
       setDocuments(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error('Failed to fetch documents', e);
     }
-  }, [apiBaseUrl]);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'knowledge') {
@@ -88,7 +86,7 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
 
     setIsUploading(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/documents`, {
+      const response = await fetch('/api/documents', {
         method: 'POST',
         body: formData
       });
