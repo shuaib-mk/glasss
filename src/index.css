@@ -218,10 +218,6 @@ button:active {
   z-index: 40;
 }
 
-@media (min-width: 768px) { 
-  .mobile-overlay { display: none; }
-}
-
 /* Mobile responsive enhancements */
 @media (max-width: 767px) {
   .chat-container {

@@ -137,14 +137,6 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
 
   return (
     <>
-      {/* Mobile Backdrop Fade */}
-      {isOpen && (
-        <div
-          onClick={() => setIsOpen(false)}
-          className="mobile-overlay animate-in"
-        />
-      )}
-
       <aside className="sidebar" style={sidebarStyle}>
         <GlassSurface
           width="100%" 
@@ -307,7 +299,10 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
             {/* Bottom Settings Button */}
             <div style={{ marginTop: 'auto', paddingTop: '0.85rem', borderTop: '1px solid var(--glass-border)' }}>
               <button 
-                onClick={() => setIsSettingsOpen(true)}
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsSettingsOpen(true);
+                }}
                 style={{ 
                   display: 'flex', alignItems: 'center', gap: '0.75rem', 
                   color: 'var(--text-secondary)', padding: '0.6rem 0.75rem', 

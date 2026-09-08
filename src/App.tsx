@@ -91,7 +91,7 @@ function App() {
         patternAlpha={15}
       />
       
-      {/* Mobile overlay */}
+      {/* Click-away overlay for the sidebar on every screen size. */}
       {isSidebarOpen && (
         <div 
           className="mobile-overlay"
