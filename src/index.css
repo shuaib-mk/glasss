@@ -213,6 +213,8 @@ button:active {
 .mobile-overlay {
   position: fixed;
   inset: 0;
+  padding: 0;
+  border: 0;
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(6px);
   z-index: 40;

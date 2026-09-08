@@ -93,7 +93,9 @@ function App() {
       
       {/* Click-away overlay for the sidebar on every screen size. */}
       {isSidebarOpen && (
-        <div 
+        <button
+          type="button"
+          aria-label="Close sidebar"
           className="mobile-overlay"
           onClick={() => setIsSidebarOpen(false)}
         />
