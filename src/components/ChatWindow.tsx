@@ -45,6 +45,74 @@ const STARTER_PROMPTS = [
   }
 ];
 
+class DirectThinkFilter {
+  private inThink = false;
+  private buffer = '';
+
+  process(chunk: string): string {
+    this.buffer += chunk;
+    let output = '';
+
+    while (this.buffer.length > 0) {
+      if (!this.inThink) {
+        const thinkStart = this.buffer.indexOf('<think>');
+        if (thinkStart !== -1) {
+          output += this.buffer.slice(0, thinkStart);
+          this.buffer = this.buffer.slice(thinkStart + 7);
+          this.inThink = true;
+        } else {
+          let partialIdx = -1;
+          for (let i = 1; i < 7; i++) {
+            if (this.buffer.endsWith('<think>'.slice(0, i))) {
+              partialIdx = this.buffer.length - i;
+              break;
+            }
+          }
+          if (partialIdx !== -1) {
+            output += this.buffer.slice(0, partialIdx);
+            this.buffer = this.buffer.slice(partialIdx);
+            break;
+          } else {
+            output += this.buffer;
+            this.buffer = '';
+          }
+        }
+      } else {
+        const thinkEnd = this.buffer.indexOf('</think>');
+        if (thinkEnd !== -1) {
+          this.buffer = this.buffer.slice(thinkEnd + 8);
+          this.inThink = false;
+        } else {
+          let partialIdx = -1;
+          for (let i = 1; i < 8; i++) {
+            if (this.buffer.endsWith('</think>'.slice(0, i))) {
+              partialIdx = this.buffer.length - i;
+              break;
+            }
+          }
+          if (partialIdx !== -1) {
+            this.buffer = this.buffer.slice(partialIdx);
+          } else {
+            this.buffer = '';
+          }
+          break;
+        }
+      }
+    }
+
+    return output;
+  }
+
+  flush(): string {
+    if (!this.inThink && this.buffer) {
+      const out = this.buffer;
+      this.buffer = '';
+      return out;
+    }
+    return '';
+  }
+}
+
 async function streamDirectGroqChat({
   messages,
   model,
@@ -127,13 +195,12 @@ CRITICAL LANGUAGE MANDATE:
       'Authorization': `Bearer ${groqKey}`
     },
     body: JSON.stringify({
-      model: model || adminConfig?.defaultModel || 'allam-2-7b',
+      model: model || adminConfig?.defaultModel || 'qwen/qwen3.8-27b',
       messages: groqMessages,
       temperature: adminConfig?.temperature ?? 0.6,
-      max_tokens: adminConfig?.maxTokens ?? 750,
-      frequency_penalty: 0.5,
-      presence_penalty: 0.3,
-      stop: ["**", "__", "```"],
+      max_tokens: adminConfig?.maxTokens ?? 1000,
+      frequency_penalty: 0.3,
+      presence_penalty: 0.2,
       stream: true
     })
   });
@@ -148,6 +215,7 @@ CRITICAL LANGUAGE MANDATE:
   const reader = res.body.getReader();
   const decoder = new TextDecoder('utf-8');
   let done = false;
+  const thinkFilter = new DirectThinkFilter();
 
   while (!done) {
     const { value, done: readerDone } = await reader.read();
@@ -163,7 +231,10 @@ CRITICAL LANGUAGE MANDATE:
             const data = JSON.parse(dataStr);
             const content = data.choices?.[0]?.delta?.content || '';
             if (content) {
-              onChunk(content);
+              const cleanContent = thinkFilter.process(content);
+              if (cleanContent) {
+                onChunk(cleanContent);
+              }
             }
           } catch (e) {
             // parse next line
@@ -171,6 +242,11 @@ CRITICAL LANGUAGE MANDATE:
         }
       }
     }
+  }
+
+  const finalFlush = thinkFilter.flush();
+  if (finalFlush) {
+    onChunk(finalFlush);
   }
 }
 

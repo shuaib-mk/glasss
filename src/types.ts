@@ -42,11 +42,11 @@ export interface AIModel {
 }
 
 export const AVAILABLE_MODELS: AIModel[] = [
-  { id: 'allam-2-7b', name: 'Allam 2 7B', limit: 'Ultra Fast Instant Response' },
+  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B', limit: 'Ultra Fast & High Accuracy' },
   { id: 'qwen/qwen3.6-27b', name: 'Qwen 3.6 27B', limit: 'High Accuracy Reasoning' },
   { id: 'openai/gpt-oss-20b', name: 'GPT OSS 20B', limit: 'Fast & Versatile' },
   { id: 'openai/gpt-oss-120b', name: 'GPT OSS 120B', limit: 'Large Capability' },
-  { id: 'groq/compound-mini', name: 'Groq Compound Mini', limit: 'Ultra Fast' }
+  { id: 'allam-2-7b', name: 'Allam 2 7B', limit: 'Arabic/English Specialized' }
 ];
 
 export interface SystemLog {

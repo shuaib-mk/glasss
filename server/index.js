@@ -130,20 +130,89 @@ app.post('/api/documents', upload.single('file'), (req, res) => {
   res.json({ message: 'File uploaded successfully', filename: req.file.filename });
 });
 
+class ThinkTagFilter {
+  constructor() {
+    this.inThink = false;
+    this.buffer = '';
+  }
+
+  process(chunk) {
+    this.buffer += chunk;
+    let output = '';
+
+    while (this.buffer.length > 0) {
+      if (!this.inThink) {
+        const thinkStart = this.buffer.indexOf('<think>');
+        if (thinkStart !== -1) {
+          output += this.buffer.slice(0, thinkStart);
+          this.buffer = this.buffer.slice(thinkStart + 7);
+          this.inThink = true;
+        } else {
+          let partialIdx = -1;
+          for (let i = 1; i < 7; i++) {
+            if (this.buffer.endsWith('<think>'.slice(0, i))) {
+              partialIdx = this.buffer.length - i;
+              break;
+            }
+          }
+          if (partialIdx !== -1) {
+            output += this.buffer.slice(0, partialIdx);
+            this.buffer = this.buffer.slice(partialIdx);
+            break;
+          } else {
+            output += this.buffer;
+            this.buffer = '';
+          }
+        }
+      } else {
+        const thinkEnd = this.buffer.indexOf('</think>');
+        if (thinkEnd !== -1) {
+          this.buffer = this.buffer.slice(thinkEnd + 8);
+          this.inThink = false;
+        } else {
+          let partialIdx = -1;
+          for (let i = 1; i < 8; i++) {
+            if (this.buffer.endsWith('</think>'.slice(0, i))) {
+              partialIdx = this.buffer.length - i;
+              break;
+            }
+          }
+          if (partialIdx !== -1) {
+            this.buffer = this.buffer.slice(partialIdx);
+          } else {
+            this.buffer = '';
+          }
+          break;
+        }
+      }
+    }
+
+    return output;
+  }
+
+  flush() {
+    if (!this.inThink && this.buffer) {
+      const out = this.buffer;
+      this.buffer = '';
+      return out;
+    }
+    return '';
+  }
+}
+
 const VALID_MODELS = [
-  'allam-2-7b',
+  'qwen/qwen3.8-27b',
   'qwen/qwen3.6-27b',
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
-  'groq/compound',
-  'groq/compound-mini'
+  'allam-2-7b'
 ];
 
 // POST /api/chat - Stream AI chat responses
 app.post('/api/chat', async (req, res) => {
-  let { messages = [], model = 'allam-2-7b' } = req.body;
+  let { messages = [], model = 'qwen/qwen3.8-27b' } = req.body;
   if (!VALID_MODELS.includes(model)) {
-    model = 'allam-2-7b';
+    model = 'qwen/qwen3.8-27b';
   }
 
   // Set SSE Headers
@@ -159,7 +228,7 @@ app.post('/api/chat', async (req, res) => {
     const userProvidedKey = req.headers['x-groq-api-key'] || req.body.apiKey;
     const groq = getGroqClient(userProvidedKey);
 
-    const systemPrompt = `You are Sunni AI, a fast, intelligent, and respectful Islamic Knowledge Assistant created by q04ti, a developer and student.
+    let systemPrompt = `You are Sunni AI, a fast, intelligent, and respectful Islamic Knowledge Assistant created by q04ti, a developer and student.
 Your goal is to provide instant, accurate, and concise answers regarding Quran, Hadith, Islamic jurisprudence (fiqh), theology (aqeedah), and history.
 
 CREATOR & IDENTITY:
@@ -198,6 +267,18 @@ CRITICAL LANGUAGE MANDATE:
 5. Match user greetings naturally in English (e.g. if the user says "hi" or "hello", reply in English like "Hello! How can I assist you today?").
 6. Do NOT output internal reasoning blocks or <think> tags.`;
 
+    // Query Knowledge Base if user query present
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user' || m.role === 'human');
+    if (lastUserMsg && lastUserMsg.text) {
+      const { citations, contextText } = await searchKnowledgeBase(lastUserMsg.text);
+      if (citations && citations.length > 0) {
+        sendEvent('citations', citations);
+      }
+      if (contextText) {
+        systemPrompt += `\n\nRELEVANT KNOWLEDGE BASE CONTEXT:\n${contextText}`;
+      }
+    }
+
     // Format chat messages for Groq API
     const groqMessages = [
       { role: 'system', content: systemPrompt },
@@ -213,27 +294,32 @@ CRITICAL LANGUAGE MANDATE:
       })
     ];
 
-    // Call Groq API with streaming and anti-markdown parameters
+    // Call Groq API with streaming
     const stream = await groq.chat.completions.create({
-      model: model || 'allam-2-7b',
+      model: model || 'qwen/qwen3.8-27b',
       messages: groqMessages,
       temperature: 0.6,
-      max_tokens: 750,
-      frequency_penalty: 0.5,
-      presence_penalty: 0.3,
-      stop: ["**", "__", "```"],
+      max_tokens: 1000,
+      frequency_penalty: 0.3,
+      presence_penalty: 0.2,
       stream: true
     });
+
+    const thinkFilter = new ThinkTagFilter();
 
     for await (const chunk of stream) {
       let content = chunk.choices[0]?.delta?.content || '';
       if (content) {
-        // Strip lingering markdown tokens
-        content = content.replace(/\*/g, '').replace(/`/g, '');
-        if (content) {
-          sendEvent('chunk', content);
+        const cleanContent = thinkFilter.process(content);
+        if (cleanContent) {
+          sendEvent('chunk', cleanContent);
         }
       }
+    }
+
+    const finalFlush = thinkFilter.flush();
+    if (finalFlush) {
+      sendEvent('chunk', finalFlush);
     }
 
     res.end();
