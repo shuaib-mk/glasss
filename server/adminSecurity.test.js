@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAdminSessionCookie, isAdminAuthenticated, verifyAdminPassword } from './adminAuth.js';
-import { buildSystemPrompt, decryptSecret, encryptSecret, maskApiKey } from './adminConfig.js';
+import { buildSystemPrompt, decryptSecret, encryptSecret, maskApiKey, DEFAULT_ADMIN_CONFIG } from './adminConfig.js';
 
 test('admin sessions are server-signed and HttpOnly', () => {
   const previousPassword = process.env.ADMIN_PASSWORD;
@@ -49,4 +49,16 @@ test('creator identity is injected into the server prompt', () => {
   assert.match(prompt, /created by New Developer/);
   assert.match(prompt, /Builds educational tools/);
   assert.match(prompt, /Be concise/);
+});
+
+test('answers have room to finish without encouraging unnecessary length', () => {
+  assert.equal(DEFAULT_ADMIN_CONFIG.maxTokens, 2048);
+  const prompt = buildSystemPrompt({
+    assistantName: 'Sunni AI',
+    creatorName: 'q04ti',
+    creatorDetails: '',
+    systemPrompt: 'Be concise.'
+  });
+  assert.match(prompt, /finish the current sentence and section/i);
+  assert.match(prompt, /condense instead of ending abruptly/i);
 });

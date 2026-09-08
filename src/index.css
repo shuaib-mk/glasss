@@ -220,7 +220,6 @@ button:active {
 
 @media (min-width: 768px) { 
   .mobile-overlay { display: none; }
-  .chat-container { padding-left: 280px !important; }
 }
 
 /* Mobile responsive enhancements */
