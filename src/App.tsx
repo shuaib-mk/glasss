@@ -72,20 +72,12 @@ function App() {
     localStorage.setItem('islamic-chatbot-model', aiModel);
   }, [aiModel]);
 
-  const [apiKey, setApiKey] = useState(() => {
-    return sessionStorage.getItem('islamic-chatbot-apikey') || '';
-  });
-
   useEffect(() => {
     // Remove keys persisted by older versions of the app.
     localStorage.removeItem('islamic-chatbot-apikey');
+    sessionStorage.removeItem('islamic-chatbot-apikey');
     localStorage.removeItem('islamic-chatbot-history');
-    if (apiKey) {
-      sessionStorage.setItem('islamic-chatbot-apikey', apiKey);
-    } else {
-      sessionStorage.removeItem('islamic-chatbot-apikey');
-    }
-  }, [apiKey]);
+  }, []);
 
   const currentChat = chats.find(c => c.id === currentChatId) || null;
 
@@ -131,8 +123,6 @@ function App() {
             glassSettings={glassSettings}
             aiModel={aiModel}
             setAiModel={setAiModel}
-            apiKey={apiKey}
-            setApiKey={setApiKey}
           />
         </Suspense>
       )}
@@ -144,8 +134,6 @@ function App() {
           setGlassSettings={setGlassSettings}
           aiModel={aiModel}
           setAiModel={setAiModel}
-          apiKey={apiKey}
-          setApiKey={setApiKey}
         />
       ) : (
         <ChatWindow 
@@ -156,7 +144,6 @@ function App() {
           glassSettings={glassSettings}
           aiModel={aiModel}
           setAiModel={setAiModel}
-          apiKey={apiKey}
         />
       )}
     </>

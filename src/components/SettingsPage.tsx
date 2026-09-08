@@ -8,11 +8,9 @@ interface SettingsPageProps {
   setGlassSettings?: (s: GlassSettings | ((prev: GlassSettings) => GlassSettings)) => void;
   aiModel: string;
   setAiModel: (m: string) => void;
-  apiKey: string;
-  setApiKey: (key: string) => void;
 }
 
-export default function SettingsPage({ close, aiModel, setAiModel, apiKey, setApiKey }: SettingsPageProps) {
+export default function SettingsPage({ close, aiModel, setAiModel }: SettingsPageProps) {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', padding: '2rem', overflowY: 'auto' }}>
       <button 
@@ -32,29 +30,6 @@ export default function SettingsPage({ close, aiModel, setAiModel, apiKey, setAp
             <h2 style={{ fontSize: '1.25rem', margin: 0, color: 'var(--text-primary)' }}>AI Configuration & Models</h2>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Groq API Key (Optional override)</label>
-              <input 
-                type="password"
-                placeholder="gsk_..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'var(--glass-bg)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--glass-border)',
-                  padding: '0.75rem 1rem',
-                  borderRadius: '8px',
-                  fontSize: '1rem',
-                  outline: 'none'
-                }}
-              />
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                If left empty, Sunni AI uses the server environment key. A key entered here is kept only for this browser tab and sent through your own backend, never bundled into the app.
-              </p>
-            </div>
-
             <div>
               <label style={{ display: 'block', fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Selected AI Model</label>
               <select 

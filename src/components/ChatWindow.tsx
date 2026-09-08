@@ -15,7 +15,6 @@ interface ChatWindowProps {
   glassSettings: GlassSettings;
   aiModel: string;
   setAiModel?: (model: string) => void;
-  apiKey?: string;
 }
 
 const STARTER_PROMPTS = [
@@ -45,7 +44,7 @@ const STARTER_PROMPTS = [
   }
 ];
 
-export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCurrentChatId, glassSettings, aiModel, setAiModel, apiKey }: ChatWindowProps) {
+export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCurrentChatId, glassSettings, aiModel, setAiModel }: ChatWindowProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -188,8 +187,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
       const response = await fetch(`${backendUrl}/api/chat`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(apiKey ? { 'x-groq-api-key': apiKey } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ messages: payloadMessages, model: aiModel, settings })
       });

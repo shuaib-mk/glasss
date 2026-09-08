@@ -7,11 +7,7 @@ import path from 'path';
 import crypto from 'crypto';
 import os from 'os';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 import Groq from 'groq-sdk';
-
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
 
 dotenv.config();
 
@@ -82,13 +78,27 @@ const upload = multer({
   }
 });
 
-const getGroqClient = requestKey => {
-  const apiKey = (requestKey || process.env.GROQ_API_KEY || '').trim();
+const getGroqClient = () => {
+  const apiKey = (process.env.GROQ_API_KEY || '').trim();
   if (!apiKey) {
-    throw new Error('GROQ_API_KEY is not configured. Add it to the server environment or enter a key in Settings.');
+    throw new Error('GROQ_API_KEY is not configured in the server environment.');
   }
   return new Groq({ apiKey });
 };
+
+async function parsePdfText(filePath) {
+  // pdf-parse loads native canvas polyfills at module startup. Vercel may omit
+  // those optional native files, so loading it at the top level can crash every
+  // API route (including /api/health). Keep it isolated to actual PDF reads.
+  const { PDFParse } = await import('pdf-parse');
+  const parser = new PDFParse({ data: new Uint8Array(fs.readFileSync(filePath)) });
+  try {
+    const result = await parser.getText();
+    return result.text || '';
+  } finally {
+    await parser.destroy();
+  }
+}
 
 function extractRelevantExcerpt(content, keywords, maxLength = MAX_KNOWLEDGE_CHARACTERS) {
   const lowerContent = content.toLowerCase();
@@ -127,8 +137,7 @@ async function searchKnowledgeBase(query) {
           fileContent = cached.text;
         } else {
           if (extension === '.pdf') {
-            const pdfData = await pdfParse(fs.readFileSync(filePath));
-            fileContent = pdfData.text || '';
+            fileContent = await parsePdfText(filePath);
           } else {
             fileContent = fs.readFileSync(filePath, 'utf8');
           }
@@ -258,9 +267,6 @@ app.post('/api/chat', async (req, res) => {
 
   const requestedModel = typeof req.body?.model === 'string' ? req.body.model : '';
   const model = VALID_MODELS.has(requestedModel) ? requestedModel : 'allam-2-7b';
-  const requestKey = typeof req.headers['x-groq-api-key'] === 'string'
-    ? req.headers['x-groq-api-key']
-    : '';
   const requestedSettings = req.body?.settings || {};
   const temperature = Number.isFinite(requestedSettings.temperature)
     ? Math.min(1, Math.max(0, requestedSettings.temperature))
@@ -284,7 +290,7 @@ app.post('/api/chat', async (req, res) => {
   };
 
   try {
-    const groq = getGroqClient(requestKey);
+    const groq = getGroqClient();
     const latestQuestion = messages.at(-1).content;
     const { citations, contextText } = await searchKnowledgeBase(latestQuestion);
     if (citations.length > 0) sendEvent('citations', citations);

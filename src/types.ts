@@ -64,7 +64,6 @@ export interface SystemLog {
 }
 
 export interface AdminConfig {
-  customApiKey: string;
   defaultModel: string;
   temperature: number;
   maxTokens: number;
