@@ -119,7 +119,11 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
     border: 'none',
     margin: 0,
     transform: isOpen ? 'translateX(0)' : 'translateX(-120%)',
-    transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+    opacity: isOpen ? 1 : 0,
+    visibility: isOpen ? 'visible' : 'hidden',
+    pointerEvents: isOpen ? 'auto' : 'none',
+    willChange: 'transform, opacity',
+    transition: 'transform 0.36s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease, visibility 0.36s'
   };
 
   const handleNewChat = () => {
@@ -137,7 +141,7 @@ export default function Sidebar({ isOpen, setIsOpen, chats, setChats, currentCha
 
   return (
     <>
-      <aside className="sidebar" style={sidebarStyle}>
+      <aside className={`sidebar ${isOpen ? 'sidebar-open' : ''}`} style={sidebarStyle}>
         <GlassSurface
           width="100%" 
           height="100%"

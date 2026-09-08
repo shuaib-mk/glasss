@@ -277,7 +277,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
   };
 
   return (
-    <main className="chat-container" style={{ 
+    <main className="chat-container chat-enter" style={{
       flex: 1, 
       display: 'flex', 
       flexDirection: 'column', 
@@ -306,6 +306,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         <button 
           onClick={toggleSidebar}
           aria-label="Toggle Sidebar"
+          className="icon-button"
           style={{
             pointerEvents: 'auto',
             width: '40px', height: '40px', borderRadius: '12px',
@@ -317,7 +318,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         </button>
 
         {/* Center Title Badge */}
-        <div style={{ pointerEvents: 'auto' }}>
+        <div className="brand-badge" style={{ pointerEvents: 'auto' }}>
           <GlassSurface width={140} height={38} {...glassSettings} borderRadius={50}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', width: '100%', height: '100%' }}>
               <img src="/logo.png" alt="Sunni AI Logo" style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
@@ -330,6 +331,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         <button 
           onClick={() => setCurrentChatId(null)}
           aria-label="New Chat"
+          className="icon-button"
           style={{
             pointerEvents: 'auto',
             width: '40px', height: '40px', borderRadius: '12px',
@@ -358,7 +360,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           overflowAnchor: 'none'
         }}
       >
-        <div style={{ 
+        <div className="conversation-column" style={{
           width: '100%', 
           maxWidth: '768px', 
           display: 'flex', 
@@ -374,8 +376,8 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
           
           {messages.length === 0 ? (
             /* Hero Welcome & Starter Grid */
-            <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%' }}>
-              <div style={{ 
+            <div className="welcome-stage" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%' }}>
+              <div className="welcome-mark" style={{
                 width: '52px', height: '52px', borderRadius: '16px', 
                 background: 'linear-gradient(135deg, rgba(218, 119, 86, 0.25) 0%, rgba(218, 119, 86, 0.05) 100%)',
                 border: '1px solid rgba(218, 119, 86, 0.3)',
@@ -398,7 +400,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
                   return (
                     <div 
                       key={idx}
-                      className="glass-card"
+                      className="glass-card starter-card"
                       onClick={() => {
                         if (card.action === 'upload') {
                           fileInputRef.current?.click();
@@ -407,6 +409,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
                         }
                       }}
                       style={{
+                        animationDelay: `${idx * 65 + 180}ms`,
                         padding: '1rem',
                         display: 'flex',
                         flexDirection: 'column',
@@ -447,7 +450,11 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
                       className="message-wrapper"
                       style={{ width: '100%', maxWidth: '100%', overflow: 'visible' }}
                     >
-                      <MessageBubble msg={msg} setViewingDocument={setViewingDocument} />
+                      <MessageBubble
+                        msg={msg}
+                        setViewingDocument={setViewingDocument}
+                        isStreaming={isLoading && msg.role === 'ai' && msg.id === messages[messages.length - 1]?.id}
+                      />
                     </div>
                 );
               })}
@@ -465,7 +472,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
       </div>
 
       {/* Floating Prompt Bar (Mobile & Desktop) */}
-      <div style={{ 
+      <div className="composer-dock" style={{
         position: 'absolute',
         bottom: 0, left: 0, right: 0,
         padding: '0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom, 0px)) 0.75rem',
@@ -477,6 +484,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         pointerEvents: 'none'
       }}>
         <form 
+          className="composer-form"
           onSubmit={handleSubmit} 
           style={{ 
             width: '100%', 
@@ -533,6 +541,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
 
           {/* Floating Glass Box */}
           <GlassSurface 
+            className="composer-surface"
             width="100%" 
             height="auto" 
             {...glassSettings}
@@ -588,6 +597,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
                 
                 {/* Model Button */}
                 <button
+                  className="model-pill"
                   type="button"
                   onClick={() => setShowModelPicker(!showModelPicker)}
                   style={{
@@ -615,6 +625,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
                     style={{ display: 'none' }} 
                   />
                   <button
+                    className="composer-action"
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isLoading || isScanning}
@@ -632,6 +643,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
 
                   {/* Send Button */}
                   <button
+                    className="send-button"
                     type="submit"
                     disabled={!input.trim() || isLoading || isScanning}
                     style={{
@@ -692,7 +704,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
 }
 
 // Sub-components
-function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewingDocument: (doc: string) => void }) {
+function MessageBubble({ msg, setViewingDocument, isStreaming = false }: { msg: MessageData, setViewingDocument: (doc: string) => void, isStreaming?: boolean }) {
   const [copied, setCopied] = useState(false);
   const isAi = msg.role === 'ai';
   const displayContent = isAi ? cleanTextContent(msg.text) : msg.text;
@@ -713,8 +725,8 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
   );
 
   return (
-    <div className="animate-in message-bubble-container" style={{ display: 'flex', justifyContent: isAi ? 'flex-start' : 'flex-end', width: '100%', maxWidth: '100%', overflow: 'visible' }}>
-      <div style={{ 
+    <div className={`message-bubble-container ${isAi ? 'ai-message-enter' : 'user-message-enter'}`} style={{ display: 'flex', justifyContent: isAi ? 'flex-start' : 'flex-end', width: '100%', maxWidth: '100%', overflow: 'visible' }}>
+      <div className="message-row" style={{
         display: 'flex',
         gap: '0.75rem',
         maxWidth: isAi ? '100%' : '85%',
@@ -727,7 +739,7 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
         boxSizing: 'border-box'
       }}>
         {isAi && (
-          <div style={{ 
+          <div className={`assistant-avatar ${isErrorMsg ? 'assistant-avatar-error' : ''}`} style={{
             width: '30px', height: '30px', borderRadius: '9px', 
             background: isErrorMsg ? 'rgba(239, 68, 68, 0.15)' : 'var(--accent-soft)',
             border: isErrorMsg ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(218, 119, 86, 0.25)',
@@ -741,7 +753,7 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
           </div>
         )}
 
-        <div style={{ 
+        <div className={`chat-message-content ${isAi ? 'assistant-response' : 'user-message'}`} style={{
           flex: '1 1 0%',
           minWidth: 0,
           background: isErrorMsg ? 'rgba(239, 68, 68, 0.1)' : (isAi ? 'transparent' : 'rgba(40, 36, 33, 0.85)'),
@@ -774,13 +786,14 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
           ) : isAi ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '100%', minWidth: 0, overflowX: 'hidden', wordBreak: 'break-word', overflowWrap: 'anywhere', boxSizing: 'border-box' }}>
               {!displayContent.trim() ? (
-                <div style={{ 
+                <div className="thinking-indicator" role="status" aria-label="Sunni AI is thinking" style={{
                   display: 'flex', 
                   alignItems: 'center', 
-                  gap: '0.4rem', 
+                  gap: '0.55rem',
                   padding: '0.2rem 0',
                   color: 'var(--text-secondary)' 
                 }}>
+                  <span className="thinking-star" aria-hidden="true"><Sparkles size={14} /></span>
                   <span style={{ fontSize: '0.92rem', fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>Thinking</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '3.5px', marginTop: '2px' }}>
                     <span className="thinking-dot" style={{ animationDelay: '0s' }} />
@@ -789,7 +802,7 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                   </div>
                 </div>
               ) : (
-                <>
+                <div className="assistant-answer">
                   {parseContentBlocks(displayContent).map((block, blockIdx) => {
                     if (block.type === 'table') {
                       return (
@@ -888,7 +901,8 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                       {msg.citations.map((cite, i) => <SourcePill key={i} citation={cite} setViewingDocument={setViewingDocument} />)}
                     </div>
                   )}
-                  <div style={{ 
+                  {isStreaming && <span className="streaming-cursor" aria-hidden="true" />}
+                  {!isStreaming && <div className="response-actions" style={{
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'space-between',
@@ -934,8 +948,8 @@ function MessageBubble({ msg, setViewingDocument }: { msg: MessageData, setViewi
                         </>
                       )}
                     </button>
-                  </div>
-                </>
+                  </div>}
+                </div>
               )}
             </div>
           ) : (

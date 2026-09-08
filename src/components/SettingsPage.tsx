@@ -12,19 +12,20 @@ interface SettingsPageProps {
 
 export default function SettingsPage({ close, aiModel, setAiModel }: SettingsPageProps) {
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', padding: '2rem', overflowY: 'auto' }}>
+    <div className="settings-page" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', padding: '2rem', overflowY: 'auto' }}>
       <button 
+        className="settings-back"
         onClick={close} 
         style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: '2rem', width: 'fit-content' }}
       >
         <ArrowLeft size={20} /> Back to Chat
       </button>
 
-      <h1 style={{ fontSize: '2rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2rem' }}>Settings</h1>
+      <h1 className="settings-title" style={{ fontSize: '2rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2rem' }}>Settings</h1>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '800px' }}>
+      <div className="settings-stack" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '800px' }}>
         {/* AI Model Section */}
-        <section className="glass-panel" style={{ padding: '2rem', borderRadius: '16px' }}>
+        <section className="glass-panel settings-card" style={{ padding: '2rem', borderRadius: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
             <Cpu size={24} color="var(--accent-color)" />
             <h2 style={{ fontSize: '1.25rem', margin: 0, color: 'var(--text-primary)' }}>AI Configuration & Models</h2>
@@ -58,7 +59,7 @@ export default function SettingsPage({ close, aiModel, setAiModel }: SettingsPag
         </section>
 
         {/* Placeholder for future settings */}
-        <section className="glass-panel" style={{ padding: '2rem', borderRadius: '16px', opacity: 0.5 }}>
+        <section className="glass-panel settings-card settings-card-muted" style={{ padding: '2rem', borderRadius: '16px' }}>
           <h2 style={{ fontSize: '1.25rem', margin: 0, color: 'var(--text-primary)', marginBottom: '1rem' }}>Account (Coming Soon)</h2>
           <p style={{ color: 'var(--text-secondary)' }}>Account preferences and data export.</p>
         </section>
