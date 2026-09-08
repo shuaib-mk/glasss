@@ -16,6 +16,8 @@ create table if not exists public.app_config (
 
 alter table public.app_config enable row level security;
 revoke all on table public.app_config from anon, authenticated;
+grant usage on schema public to service_role;
+grant select, insert, update on table public.app_config to service_role;
 
 insert into public.app_config (
   id,
