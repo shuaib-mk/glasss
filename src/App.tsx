@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatWindow from './components/ChatWindow';
 import SettingsPage from './components/SettingsPage';
-import AdminPanel from './components/AdminPanel';
 import Noise from './components/Noise';
 import './index.css';
 import { AVAILABLE_MODELS, type Chat, type GlassSettings } from './types';
-import { fetchChatsFromSupabase, saveChatToSupabase, purgeSessionOnUnload } from './supabase';
+
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -38,63 +38,34 @@ function App() {
     displace: 0.5,
     greenOffset: 10
   });
-  const [chats, setChats] = useState<Chat[]>([]);
+  const [chats, setChats] = useState<Chat[]>(() => {
+    try {
+      const saved = sessionStorage.getItem('islamic-chatbot-history');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
 
-  // Automatically delete Supabase session data and local cache when user leaves/closes tab
+  // Session-only history keeps Supabase usage at zero and disappears with the tab.
   useEffect(() => {
-    const handleLeave = () => {
-      purgeSessionOnUnload();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        purgeSessionOnUnload();
-      }
-    };
-
-    window.addEventListener('beforeunload', handleLeave);
-    window.addEventListener('pagehide', handleLeave);
-    window.addEventListener('unload', handleLeave);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleLeave);
-      window.removeEventListener('pagehide', handleLeave);
-      window.removeEventListener('unload', handleLeave);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  // Sync from Supabase on mount for current session
-  useEffect(() => {
-    async function loadSupabaseData() {
-      const dbChats = await fetchChatsFromSupabase();
-      if (dbChats && dbChats.length > 0) {
-        setChats(dbChats);
-      } else {
-        setChats([]);
-      }
-    }
-    loadSupabaseData();
-  }, []);
-
-  // Sync to Supabase on chat change
-  useEffect(() => {
-    if (chats.length > 0) {
-      chats.forEach(chat => {
-        saveChatToSupabase(chat);
-      });
+    try {
+      const lightweightChats = chats.slice(0, 20).map(chat => ({
+        ...chat,
+        messages: chat.messages.slice(-20).map(message => ({ ...message, image: undefined }))
+      }));
+      sessionStorage.setItem('islamic-chatbot-history', JSON.stringify(lightweightChats));
+    } catch (error) {
+      console.warn('Unable to keep session history:', error);
     }
   }, [chats]);
 
   const [aiModel, setAiModel] = useState(() => {
     const saved = localStorage.getItem('islamic-chatbot-model');
-    if (!saved || saved === 'qwen/qwen3.8-27b') {
-      return 'openai/gpt-oss-20b';
-    }
+    // Ensure the saved model is one of the available models, otherwise fallback
     const isValid = AVAILABLE_MODELS.some(m => m.id === saved);
-    return isValid ? saved : 'openai/gpt-oss-20b';
+    return isValid && saved ? saved : 'allam-2-7b';
   });
 
   useEffect(() => {
@@ -102,11 +73,18 @@ function App() {
   }, [aiModel]);
 
   const [apiKey, setApiKey] = useState(() => {
-    return localStorage.getItem('islamic-chatbot-apikey') || '';
+    return sessionStorage.getItem('islamic-chatbot-apikey') || '';
   });
 
   useEffect(() => {
-    localStorage.setItem('islamic-chatbot-apikey', apiKey);
+    // Remove keys persisted by older versions of the app.
+    localStorage.removeItem('islamic-chatbot-apikey');
+    localStorage.removeItem('islamic-chatbot-history');
+    if (apiKey) {
+      sessionStorage.setItem('islamic-chatbot-apikey', apiKey);
+    } else {
+      sessionStorage.removeItem('islamic-chatbot-apikey');
+    }
   }, [apiKey]);
 
   const currentChat = chats.find(c => c.id === currentChatId) || null;
@@ -142,19 +120,21 @@ function App() {
       />
 
       {isAdminOpen && (
-        <AdminPanel
-          close={() => {
-            setIsAdminOpen(false);
-            if (window.location.pathname.toLowerCase().startsWith('/admin')) {
-              window.history.pushState({}, '', '/');
-            }
-          }}
-          glassSettings={glassSettings}
-          aiModel={aiModel}
-          setAiModel={setAiModel}
-          apiKey={apiKey}
-          setApiKey={setApiKey}
-        />
+        <Suspense fallback={null}>
+          <AdminPanel
+            close={() => {
+              setIsAdminOpen(false);
+              if (window.location.pathname.toLowerCase().startsWith('/admin')) {
+                window.history.pushState({}, '', '/');
+              }
+            }}
+            glassSettings={glassSettings}
+            aiModel={aiModel}
+            setAiModel={setAiModel}
+            apiKey={apiKey}
+            setApiKey={setApiKey}
+          />
+        </Suspense>
       )}
 
       {isSettingsOpen ? (

@@ -1,86 +1,61 @@
-# SunniAI
+# Sunni AI
 
-> Live at: [sunniai.vercel.app](https://sunniai.vercel.app)
+Sunni AI is a React and Express knowledge assistant backed by Groq. This version is intentionally tuned for free-tier use: streamed answers, short context, session-only chat history, on-demand image OCR, and lightweight local document lookup.
 
-SunniAI is an AI assistant that browses the web, manages files, runs code, and executes tasks through natural language conversation. You tell it what to do, and it handles the rest.
+## What this repaired version changes
 
----
+- Keeps Groq credentials out of the browser bundle and sends all model requests through the backend.
+- Parses streamed events correctly even when JSON is split across network packets.
+- Uses matching uploaded knowledge documents in answers and returns source filenames as citations.
+- Treats uploaded documents as untrusted reference text, never as application instructions.
+- Keeps at most 20 chats in the current browser tab and clears them when the tab closes.
+- Performs no Supabase chat, message, or telemetry writes in the normal chat path.
+- Sends at most eight recent messages and roughly 8,000 characters of conversation context to Groq.
+- Adds at most one 700-character knowledge excerpt, without embeddings or a paid RAG pipeline.
+- Caches up to 100 identical completed requests per running server instance.
+- Validates request sizes, models, upload types, upload sizes, and filenames.
+- Removes browser-accessible global database purge controls and default admin passcodes.
+- Adds deployable Vercel API entry points for chat and document routes.
 
-## Features
+## Run locally
 
-- **Web browsing** – Navigates sites, extracts data, and scrapes content
-- **File management** – Upload, read, edit, and organize files
-- **Search** – Finds relevant information across the web
-- **Code execution** – Generates and runs Python scripts
-- **API integration** – Connects with external services
-- **Shell commands** – Executes terminal commands in a secure environment
+1. Install Node.js 20 or newer.
+2. Copy `.env.example` to `.env`.
+3. Put a valid `GROQ_API_KEY` in `.env`.
+4. Run `npm install`.
+5. Run `npm run dev`.
+6. Open `http://localhost:5173`.
 
----
+The Vite frontend proxies `/api` requests to the Express server on port 3001.
 
-## Tech Stack
+## Environment variables
 
-| Component | Technology |
-|-----------|------------|
-| Frontend | Next.js / React |
-| Hosting | Vercel |
-| AI | OpenAI GPT-4 / Claude / Gemini |
-| Backend | FastAPI / Node.js |
-| Database | Supabase / PostgreSQL |
-| Isolation | Docker |
+Required:
 
----
+- `GROQ_API_KEY`: server-side Groq credential.
 
-## Run Locally
+Optional:
 
-```bash
-git clone https://github.com/[your-username]/sunniai.git
-cd sunniai
-npm install
-cp .env.example .env
-# Add your API keys to .env
-npm run dev
+- `PORT`: local backend port; defaults to `3001`.
+- `VITE_API_URL`: a separate backend origin. Leave empty for same-origin production and local Vite proxying.
+- `ALLOWED_ORIGINS`: comma-separated origins when the frontend and backend are hosted separately.
+- `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`: optional admin database visibility only. Normal chats do not depend on Supabase.
+- `VITE_ADMIN_PASSCODE`: enables the local admin configuration screen. This is a convenience gate compiled into frontend code, not secure production authentication.
+
+Never commit `.env`. Rotate any provider key that was previously placed in browser source or shared in an archive.
+
+## Verification
+
+```text
+npm run lint
+npm run build
+npm audit --omit=dev
 ```
 
-Open `http://localhost:3000`
+## Production notes
 
----
+The included `api` entry points allow Vercel to run the Express routes while Vite serves the frontend. Set `GROQ_API_KEY` in the hosting provider's server environment.
 
-## Environment Variables
+Local knowledge uploads are stored on disk and use a small keyword match rather than a token-heavy vector pipeline. Serverless filesystems are not durable, so hosted uploads deliberately return a clear error instead of pretending to persist. Bundled or local documents can still be used without a paid service.
 
-```env
-LLM_API_KEY=your_key_here
-DATABASE_URL=your_database_url
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
----
-
-## Usage Examples
-
-- *"Scrape the latest posts from this blog and save as CSV"*
-- *"Summarize this PDF"*
-- *"Find competitors for this product"*
-- *"Clean this dataset and remove duplicates"*
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a branch: `git checkout -b feature/your-feature`
-3. Commit: `git commit -m 'Add feature'`
-4. Push: `git push origin feature/your-feature`
-5. Open a pull request
-
----
-
-## License
-
-Apache 2.0. See [LICENSE](LICENSE) for details.
-
----
-
-## Contact
-
-- **App:** [sunniai.vercel.app](https://sunniai.vercel.app)
-- **Author:** q04ti
+For GitHub/Vercel deployment, do not set `VITE_API_URL` to `localhost`; leave it empty so the browser calls the same-origin `/api` functions. Set only the server-side `GROQ_API_KEY` in Vercel. The free Groq quota is still a hard provider limit: no application code can guarantee unlimited simultaneous public usage on one free key.

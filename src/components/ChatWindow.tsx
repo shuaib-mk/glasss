@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { Menu, Send, BookOpen, ExternalLink, Sparkles, Camera, Loader2, ChevronDown, BookMarked, ShieldCheck, Compass, FileSearch, X, Plus, AlertCircle, Copy, Check } from 'lucide-react';
-import Tesseract from 'tesseract.js';
 import type { Chat, MessageData, Citation, GlassSettings } from '../types';
 import { AVAILABLE_MODELS } from '../types';
 import GlassSurface from './GlassSurface';
-import { addAdminLog } from './AdminPanel';
+import { addAdminLog } from '../utils/adminLog';
 import { cleanTextContent, parseContentBlocks } from '../utils/cleanText';
+import { consumeEventStream } from '../utils/sse';
 
 interface ChatWindowProps {
   toggleSidebar: () => void;
@@ -45,237 +45,6 @@ const STARTER_PROMPTS = [
   }
 ];
 
-class DirectThinkFilter {
-  private inThink = false;
-  private buffer = '';
-
-  process(chunk: string): string {
-    this.buffer += chunk;
-    let output = '';
-
-    while (this.buffer.length > 0) {
-      if (!this.inThink) {
-        const thinkStart = this.buffer.indexOf('<think>');
-        if (thinkStart !== -1) {
-          output += this.buffer.slice(0, thinkStart);
-          this.buffer = this.buffer.slice(thinkStart + 7);
-          this.inThink = true;
-        } else {
-          let partialIdx = -1;
-          for (let i = 1; i < 7; i++) {
-            if (this.buffer.endsWith('<think>'.slice(0, i))) {
-              partialIdx = this.buffer.length - i;
-              break;
-            }
-          }
-          if (partialIdx !== -1) {
-            output += this.buffer.slice(0, partialIdx);
-            this.buffer = this.buffer.slice(partialIdx);
-            break;
-          } else {
-            output += this.buffer;
-            this.buffer = '';
-          }
-        }
-      } else {
-        const thinkEnd = this.buffer.indexOf('</think>');
-        if (thinkEnd !== -1) {
-          this.buffer = this.buffer.slice(thinkEnd + 8);
-          this.inThink = false;
-        } else {
-          let partialIdx = -1;
-          for (let i = 1; i < 8; i++) {
-            if (this.buffer.endsWith('</think>'.slice(0, i))) {
-              partialIdx = this.buffer.length - i;
-              break;
-            }
-          }
-          if (partialIdx !== -1) {
-            this.buffer = this.buffer.slice(partialIdx);
-          } else {
-            this.buffer = '';
-          }
-          break;
-        }
-      }
-    }
-
-    return output;
-  }
-
-  flush(): string {
-    if (this.buffer) {
-      const out = this.buffer.replace(/<think>/g, '').replace(/<\/think>/g, '');
-      this.buffer = '';
-      return out;
-    }
-    return '';
-  }
-}
-
-async function streamDirectGroqChat({
-  messages,
-  model,
-  apiKey,
-  onChunk
-}: {
-  messages: any[];
-  model: string;
-  apiKey?: string;
-  onChunk: (chunk: string) => void;
-}) {
-  let adminConfig: any = null;
-  try {
-    const saved = localStorage.getItem('sunni-admin-config');
-    if (saved) adminConfig = JSON.parse(saved);
-  } catch (e) {}
-
-  const defaultKey = ['gsk_1PWFTdO4iGLVnDYnPO81', 'WGdyb3FYoQNLWm2CSlZAPrXifilAJrAJ'].join('');
-  const groqKey = (adminConfig?.customApiKey || apiKey || import.meta.env.VITE_GROQ_API_KEY || defaultKey).trim();
-
-  const defaultSystemPrompt = `You are Sunni AI, a fast, intelligent, and respectful Islamic Knowledge Assistant created by q04ti, a developer and student.
-Your goal is to provide instant, accurate, and concise answers regarding Quran, Hadith, Islamic jurisprudence (fiqh), theology (aqeedah), and history.
-
-CREATOR & IDENTITY:
-- When asked who created, built, or developed you, ALWAYS state clearly that you were created by q04ti, a developer and a student.
-
-CRITICAL FORMATTING MANDATE (STRICT NO MARKDOWN):
-1. OUTPUT PLAIN TEXT ONLY - ABSOLUTELY NO MARKDOWN FORMATTING.
-2. DO NOT USE ASTERISKS (*) FOR BOLD, ITALIC, OR LISTS. NEVER USE ** OR * ANYWHERE IN YOUR OUTPUT.
-3. DO NOT USE UNDERSCORES (_) OR HASH SYMBOLS (#) FOR HEADERS.
-4. DO NOT USE BACKTICKS (\`) FOR CODE BLOCKS.
-5. Use plain text with line breaks only.
-6. Use double quotes " " for Quranic verses, Hadith quotes, or book titles (not asterisks).
-7. Use plain dashes - for bullet points (never asterisks).
-8. Use standard numbers 1. 2. 3. for numbered lists.
-9. FOR TABLES AND COLUMNS: Use standard markdown tables (| Header 1 | Header 2 |) when presenting structured comparisons or column data.
-
-Examples:
-❌ WRONG: **"Quran verse"** - Explanation:
-✅ CORRECT: "Quran verse" - Explanation:
-
-❌ WRONG: *Important point*
-✅ CORRECT: Important point
-
-❌ WRONG: # Section Title
-✅ CORRECT: Section Title
-
-REMEMBER: PLAIN TEXT ONLY. ABSOLUTELY ZERO ASTERISKS OR MARKDOWN FORMATTING.
-
-CRITICAL LANGUAGE MANDATE:
-1. The user communicates in ENGLISH. YOU MUST RESPOND EXCLUSIVELY IN ENGLISH.
-2. NEVER write conversational paragraphs, greetings, commentary, or explanations in Arabic.
-3. The ONLY allowed use of Arabic script is for exact Quranic Verses (Ayat) or Hadith quotes.
-4. When providing a Quranic verse or Hadith:
-   - Provide the Arabic text first on its own line.
-   - Immediately follow it with the English translation and explanation.
-5. Match user greetings naturally in English (e.g. if the user says "hi" or "hello", reply in English like "Hello! How can I assist you today?").
-6. Do NOT output internal reasoning blocks or <think> tags.`;
-
-  const systemPrompt = adminConfig?.systemPrompt || defaultSystemPrompt;
-
-  const groqMessages = [
-    { role: 'system', content: systemPrompt },
-    ...messages.map(m => {
-      let content = m.text || '';
-      if (m.image) {
-        content += '\n[Image reference / OCR text attached]';
-      }
-      return {
-        role: m.role === 'ai' ? 'assistant' : 'user',
-        content
-      };
-    })
-  ];
-
-  const candidateModels = Array.from(new Set([
-    model || adminConfig?.defaultModel || 'openai/gpt-oss-20b',
-    'openai/gpt-oss-20b',
-    'qwen/qwen3.6-27b',
-    'allam-2-7b',
-    'openai/gpt-oss-120b'
-  ])).filter(Boolean);
-
-  let res: Response | null = null;
-  let lastErrText = '';
-
-  for (const targetModel of candidateModels) {
-    try {
-      const attemptRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${groqKey}`
-        },
-        body: JSON.stringify({
-          model: targetModel,
-          messages: groqMessages,
-          temperature: adminConfig?.temperature ?? 0.6,
-          max_tokens: adminConfig?.maxTokens ?? 2048,
-          frequency_penalty: 0.3,
-          presence_penalty: 0.2,
-          stream: true
-        })
-      });
-
-      if (attemptRes.ok) {
-        res = attemptRes;
-        break;
-      } else {
-        lastErrText = await attemptRes.text().catch(() => '');
-        console.warn(`Groq model ${targetModel} returned status ${attemptRes.status}. Trying fallback model...`);
-      }
-    } catch (e: any) {
-      lastErrText = e.message || '';
-    }
-  }
-
-  if (!res) {
-    throw new Error(`Groq API Error: ${lastErrText || 'All candidate model attempts failed.'}`);
-  }
-
-  if (!res.body) throw new Error('ReadableStream not supported in this browser.');
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder('utf-8');
-  let done = false;
-  const thinkFilter = new DirectThinkFilter();
-
-  let sseLineBuffer = '';
-  while (!done) {
-    const { value, done: readerDone } = await reader.read();
-    done = readerDone;
-    if (value) {
-      sseLineBuffer += decoder.decode(value, { stream: true });
-      const lines = sseLineBuffer.split('\n');
-      sseLineBuffer = lines.pop() || '';
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const dataStr = line.slice(6).trim();
-          if (dataStr === '[DONE]') break;
-          try {
-            const data = JSON.parse(dataStr);
-            const content = data.choices?.[0]?.delta?.content || '';
-            if (content) {
-              const cleanContent = thinkFilter.process(content);
-              if (cleanContent) {
-                onChunk(cleanContent);
-              }
-            }
-          } catch (e) {
-            // parse next line
-          }
-        }
-      }
-    }
-  }
-
-  const finalFlush = thinkFilter.flush();
-  if (finalFlush) {
-    onChunk(finalFlush);
-  }
-}
-
 export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCurrentChatId, glassSettings, aiModel, setAiModel, apiKey }: ChatWindowProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -293,6 +62,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
 
   const messages = currentChat ? currentChat.messages : [];
   const selectedModelObj = AVAILABLE_MODELS.find(m => m.id === aiModel) || AVAILABLE_MODELS[0] || { name: 'Qwen 3.6 27B', id: 'qwen/qwen3.6-27b', limit: 'High Accuracy' };
+  const apiBaseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
   // Explicit function to smoothly scroll to top of new user prompt & AI reply below the fixed top header
   const scrollToTopOfNewMessage = () => {
@@ -360,22 +130,24 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
     
     let chatIdToUse = currentChat?.id;
     const isNewChat = !chatIdToUse;
+    const createdAt = Date.now();
     const userMessageId = crypto.randomUUID();
     const aiMessageId = crypto.randomUUID();
 
     if (isNewChat) {
       chatIdToUse = crypto.randomUUID();
       setCurrentChatId(chatIdToUse);
-      setChats(prev => [{
+      const newChat: Chat = {
         id: chatIdToUse as string,
         title: userText.slice(0, 40),
-        messages: [{ id: userMessageId, role: 'user', text: userText, image: currentImage || undefined }],
-        updatedAt: Date.now()
-      }, ...prev]);
+        messages: [{ id: userMessageId, role: 'user', text: userText, createdAt, image: currentImage || undefined }],
+        updatedAt: createdAt
+      };
+      setChats(prev => [newChat, ...prev].slice(0, 20));
     } else {
       setChats(prev => prev.map(c => 
         c.id === chatIdToUse 
-          ? { ...c, messages: [...c.messages, { id: userMessageId, role: 'user', text: userText, image: currentImage || undefined }], updatedAt: Date.now() }
+          ? { ...c, messages: [...c.messages, { id: userMessageId, role: 'user', text: userText, createdAt, image: currentImage || undefined }], updatedAt: createdAt }
           : c
       ));
     }
@@ -387,7 +159,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
     // Inject empty AI message
     setChats(prev => prev.map(c => 
       c.id === chatIdToUse 
-        ? { ...c, messages: [...c.messages, { id: aiMessageId, role: 'ai', text: '', citations: [] }], updatedAt: Date.now() }
+        ? { ...c, messages: [...c.messages, { id: aiMessageId, role: 'ai', text: '', createdAt: createdAt + 1, citations: [] }], updatedAt: createdAt }
         : c
     ));
 
@@ -397,91 +169,63 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
     let accumulatedResponse = '';
 
     try {
-      let backendFailed = false;
-      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-      if (!isLocalhost && backendUrl.includes('localhost')) {
-        backendFailed = true;
-      } else {
-        try {
-          const response = await fetch(`${backendUrl}/api/chat`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              ...(apiKey ? { 'x-groq-api-key': apiKey } : {})
-            },
-            body: JSON.stringify({ messages: payloadMessages, model: aiModel })
-          });
-
-          if (!response.ok) throw new Error(`Server status ${response.status}`);
-          if (!response.body) throw new Error('ReadableStream not supported in this browser.');
-          
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder('utf-8');
-          
-          let sseLineBuffer = '';
-          let done = false;
-          while (!done) {
-            const { value, done: readerDone } = await reader.read();
-            done = readerDone;
-            if (value) {
-              sseLineBuffer += decoder.decode(value, { stream: true });
-              const lines = sseLineBuffer.split('\n');
-              sseLineBuffer = lines.pop() || '';
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  const dataStr = line.slice(6).trim();
-                  if (!dataStr) continue;
-                  try {
-                    const data = JSON.parse(dataStr);
-                    if (data.type === 'citations') {
-                      setChats(prev => prev.map(c => 
-                        c.id === chatIdToUse 
-                          ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, citations: data.data } : m) }
-                          : c
-                      ));
-                    } else if (data.type === 'chunk') {
-                      accumulatedResponse += data.data;
-                      setChats(prev => prev.map(c => 
-                        c.id === chatIdToUse 
-                          ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, text: m.text + data.data } : m) }
-                          : c
-                      ));
-                    } else if (data.type === 'error') {
-                      setChats(prev => prev.map(c => 
-                        c.id === chatIdToUse 
-                          ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, text: m.text + "\n\n[Error: " + data.data + "]" } : m) }
-                          : c
-                      ));
-                    }
-                  } catch (e) {
-                    // Parse next chunk safely
-                  }
-                }
-              }
-            }
-          }
-        } catch (serverErr) {
-          console.warn('Backend server unreachable, trying direct Groq API stream:', serverErr);
-          backendFailed = true;
+      let settings: { temperature?: number; maxTokens?: number; systemPrompt?: string } | undefined;
+      try {
+        const savedSettings = localStorage.getItem('sunni-admin-config');
+        if (savedSettings) {
+          const parsed = JSON.parse(savedSettings);
+          settings = {
+            temperature: parsed.temperature,
+            maxTokens: parsed.maxTokens,
+            systemPrompt: parsed.systemPrompt
+          };
         }
+      } catch {
+        // Ignore malformed settings and use safe server defaults.
       }
 
-      if (backendFailed) {
-        await streamDirectGroqChat({
-          messages: payloadMessages,
-          model: aiModel,
-          apiKey,
-          onChunk: (chunkText) => {
-            accumulatedResponse += chunkText;
-            setChats(prev => prev.map(c => 
-              c.id === chatIdToUse 
-                ? { ...c, messages: c.messages.map(m => m.id === aiMessageId ? { ...m, text: m.text + chunkText } : m) }
-                : c
-            ));
-          }
-        });
+      const backendUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const response = await fetch(`${backendUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { 'x-groq-api-key': apiKey } : {})
+        },
+        body: JSON.stringify({ messages: payloadMessages, model: aiModel, settings })
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || `The server returned status ${response.status}.`);
+      }
+
+      await consumeEventStream(response, event => {
+        if (event.type === 'citations' && Array.isArray(event.data)) {
+          setChats(prev => prev.map(chat =>
+            chat.id === chatIdToUse
+              ? { ...chat, messages: chat.messages.map(message => message.id === aiMessageId ? { ...message, citations: event.data as Citation[] } : message) }
+              : chat
+          ));
+          return;
+        }
+
+        if (event.type === 'chunk' && typeof event.data === 'string') {
+          accumulatedResponse += event.data;
+          setChats(prev => prev.map(chat =>
+            chat.id === chatIdToUse
+              ? { ...chat, messages: chat.messages.map(message => message.id === aiMessageId ? { ...message, text: message.text + event.data } : message) }
+              : chat
+          ));
+          return;
+        }
+
+        if (event.type === 'error') {
+          throw new Error(typeof event.data === 'string' ? event.data : 'The AI service returned an error.');
+        }
+      });
+
+      if (!accumulatedResponse.trim()) {
+        throw new Error('The AI service returned an empty response.');
       }
 
       addAdminLog({
@@ -516,6 +260,14 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please choose an image file.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Please choose an image smaller than 10 MB.');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -525,6 +277,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
 
     setIsScanning(true);
     try {
+      const { default: Tesseract } = await import('tesseract.js');
       const result = await Tesseract.recognize(file, 'eng+ara');
       const text = result.data.text.trim();
       if (text) {
@@ -926,9 +679,8 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         style={{
           position: 'absolute',
           top: '1rem', bottom: '1rem',
-          right: viewingDocument ? '1rem' : '-100vw',
+          right: viewingDocument ? '1rem' : '-420px',
           width: '380px',
-          maxWidth: 'calc(100vw - 2rem)',
           zIndex: 45,
           borderRadius: '20px',
           display: 'flex', flexDirection: 'column',
@@ -947,7 +699,7 @@ export default function ChatWindow({ toggleSidebar, currentChat, setChats, setCu
         <div style={{ flex: 1, background: '#ffffff' }}>
           {viewingDocument && (
             <iframe 
-              src={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/knowledge_base/${encodeURIComponent(viewingDocument)}`}
+              src={`${apiBaseUrl}/api/document?filename=${encodeURIComponent(viewingDocument)}`}
               style={{ width: '100%', height: '100%', border: 'none' }}
               title="Document Viewer"
             />

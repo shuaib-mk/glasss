@@ -73,7 +73,7 @@ const GlassSurface = ({
       if (feImageRef.current && containerRef.current) {
         feImageRef.current.setAttribute('href', generateDisplacementMap());
       }
-    } catch (e) {
+      } catch {
       // Ignore transient resize errors
     }
   };

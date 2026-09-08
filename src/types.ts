@@ -24,6 +24,7 @@ export interface MessageData {
   id: string;
   role: 'user' | 'ai';
   text: string;
+  createdAt?: number;
   image?: string;
   citations?: Citation[];
 }
@@ -42,11 +43,11 @@ export interface AIModel {
 }
 
 export const AVAILABLE_MODELS: AIModel[] = [
-  { id: 'openai/gpt-oss-20b', name: 'GPT OSS 20B', limit: 'Ultra Fast & High Quota' },
+  { id: 'allam-2-7b', name: 'Allam 2 7B', limit: 'Ultra Fast Instant Response' },
   { id: 'qwen/qwen3.6-27b', name: 'Qwen 3.6 27B', limit: 'High Accuracy Reasoning' },
-  { id: 'allam-2-7b', name: 'Allam 2 7B', limit: 'Islamic & Arabic Specialized' },
+  { id: 'openai/gpt-oss-20b', name: 'GPT OSS 20B', limit: 'Fast & Versatile' },
   { id: 'openai/gpt-oss-120b', name: 'GPT OSS 120B', limit: 'Large Capability' },
-  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B', limit: 'Fast Preview' }
+  { id: 'groq/compound-mini', name: 'Groq Compound Mini', limit: 'Ultra Fast' }
 ];
 
 export interface SystemLog {
