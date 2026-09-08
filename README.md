@@ -1,32 +1,73 @@
-# React + TypeScript + Vite
+SunniAI
+Live at: sunniai.vercel.app
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+SunniAI is an AI assistant that browses the web, manages files, runs code, and executes tasks through natural language conversation. You tell it what to do, and it handles the rest.
 
-Currently, two official plugins are available:
+Features
+Web browsing – Navigates sites, extracts data, and scrapes content
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+File management – Upload, read, edit, and organize files
 
-## React Compiler
+Search – Finds relevant information across the web
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Code execution – Generates and runs Python scripts
 
-## Expanding the Oxlint configuration
+API integration – Connects with external services
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Shell commands – Executes terminal commands in a secure environment
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+Tech Stack
+Frontend: [Next.js / React]
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Hosting: Vercel
+
+AI: [OpenAI GPT-4 / Claude / Gemini]
+
+Backend: [FastAPI / Node.js]
+
+Database: [Supabase / PostgreSQL]
+
+Isolation: Docker
+
+Run Locally
+bash
+git clone https://github.com/[your-username]/sunniai.git
+cd sunniai
+npm install
+cp .env.example .env
+# Add your API keys to .env
+npm run dev
+Open http://localhost:3000
+
+Environment Variables
+text
+LLM_API_KEY=your_key_here
+DATABASE_URL=your_database_url
+NEXT_PUBLIC_API_URL=http://localhost:8000
+Usage Examples
+"Scrape the latest posts from this blog and save as CSV"
+
+"Summarize this PDF"
+
+"Find competitors for this product"
+
+"Clean this dataset and remove duplicates"
+
+Contributing
+Fork the repository
+
+Create a branch: git checkout -b feature/your-feature
+
+Commit: git commit -m 'Add feature'
+
+Push: git push origin feature/your-feature
+
+Open a pull request
+
+License
+Apache 2.0. See LICENSE for details.
+
+Contact
+App: sunniai.vercel.app
+
+Author: q04ti
